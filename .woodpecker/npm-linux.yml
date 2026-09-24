@@ -37,16 +37,7 @@ steps:
       NPM_TOKEN:
         from_secret: npm_token
     commands:
-      - apt-get update && apt-get install -y nodejs npm gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
-      - rustup target add aarch64-unknown-linux-gnu
-      - export CXX_aarch64-unknown-linux-gnu=aarch64-linux-gnu-g++
-      - export CXX_aarch64_unknown_linux_gnu=aarch64-linux-gnu-g++
-      - export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc
-      - cargo build -p jigor-cli --release --target aarch64-unknown-linux-gnu
-      - cp target/release/jigor npm/platforms/linux-arm64-gnu/
-      - node scripts/npm-version.js npm/platforms/linux-arm64-gnu
-      - echo "//registry.npmjs.org/:_authToken=$${NPM_TOKEN}" >> ~/.npmrc
-      - node scripts/npm-publish.js npm/platforms/linux-arm64-gnu
+      - bash scripts/build-npm-linux-arm64.sh
 
   - name: publish-meta
     image: node:22
