@@ -19,7 +19,7 @@ steps:
       # linux wheels can't be manylinux-tagged (ort prebuilt needs GLIBC_2.38);
       # publish the sdist only, wheels ship from the macos/windows pipelines
       - rm -f dist/*linux_x86_64*.whl
-      - uv publish dist/*
+      - bash scripts/pypi-publish.sh
     environment:
       UV_PUBLISH_TOKEN:
         from_secret: uv_token

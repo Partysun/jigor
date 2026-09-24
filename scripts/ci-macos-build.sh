@@ -77,4 +77,4 @@ echo "Building the universal2 wheel"
 cargo install --quiet uv || true
 uv tool install --quiet maturin || true
 uv tool run maturin build --release --target universal2-apple-darwin --out dist
-uv publish dist/*
+bash scripts/pypi-publish.sh

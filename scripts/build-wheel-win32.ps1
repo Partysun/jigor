@@ -32,5 +32,30 @@ if (-not $?) { throw "uv tool install maturin failed" }
 uv tool run maturin build --release --out dist
 if (-not $?) { throw "maturin build failed" }
 
-uv publish dist/*
+# PyPI rejects re-uploads ("File already exists"): skip files already on
+# the registry so re-runs of the same version are a no-op (mirrors
+# scripts/pypi-publish.sh).
+$version = $null
+foreach ($line in (Get-Content Cargo.toml)) {
+    if ($line -match '^\s*version = "([^"]+)"') { $version = $matches[1]; break }
+}
+$artifacts = @(Get-ChildItem dist\* -File 2>$null)
+if ($artifacts.Count -eq 0) { throw "no artifacts in dist\" }
+$missing = @()
+foreach ($a in $artifacts) {
+    $found = $false
+    try {
+        $json = Invoke-RestMethod -Uri "https://pypi.org/pypi/jigor/$version/json" -TimeoutSec 20
+        foreach ($u in $json.urls) {
+            if ($u.filename -eq $a.Name) { $found = $true; break }
+        }
+    } catch { }
+    if ($found) { echo "skip: $($a.Name) already on PyPI" } else { $missing += $a.Path }
+}
+if ($missing.Count -eq 0) {
+    echo "nothing new to publish"
+    exit 0
+}
+echo "publishing $($missing.Count) file(s)"
+uv publish @missing
 exit $LASTEXITCODE
