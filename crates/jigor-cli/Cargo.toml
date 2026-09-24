@@ -8,8 +8,8 @@ authors.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
-# use relative path because maturin does not recognize inherited readmes
-readme = "../../README.md"
+# keep the CLI readme short; the full lib-oriented README lives at the root
+readme = "README.md"
 
 [[bin]]
 name = "jigor"
