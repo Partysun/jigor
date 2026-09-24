@@ -37,25 +37,35 @@ pub(crate) fn init_session<P: AsRef<Path>>(model_path: P) -> AnyhowResult<ort::s
             .commit_from_file(model_path)
             .context("ort session from model.onnx");
     }
-    let builder = ort::session::Session::builder()?;
-    // try CUDA provider, fallback to CPU on error (e.g. no CUDA EP in ort-sys)
-    let with_cuda = builder.with_execution_providers([ort::ep::CUDA::default().build()]);
-    match with_cuda {
-        Ok(mut b) => match b.commit_from_file(&model_path) {
-            Ok(s) => Ok(s),
+    #[cfg(feature = "cuda")]
+    {
+        let builder = ort::session::Session::builder()?;
+        // try CUDA provider, fallback to CPU on error (e.g. no CUDA EP in ort-sys)
+        let with_cuda = builder.with_execution_providers([ort::ep::CUDA::default().build()]);
+        match with_cuda {
+            Ok(mut b) => match b.commit_from_file(&model_path) {
+                Ok(s) => Ok(s),
+                Err(e) => {
+                    eprintln!("CUDA session failed ({e}), fallback to CPU");
+                    ort::session::Session::builder()?
+                        .commit_from_file(&model_path)
+                        .context("ort CPU fallback")
+                }
+            },
             Err(e) => {
-                eprintln!("CUDA session failed ({e}), fallback to CPU");
+                eprintln!("CUDA EP not available ({e}), fallback to CPU");
                 ort::session::Session::builder()?
                     .commit_from_file(&model_path)
                     .context("ort CPU fallback")
             }
-        },
-        Err(e) => {
-            eprintln!("CUDA EP not available ({e}), fallback to CPU");
-            ort::session::Session::builder()?
-                .commit_from_file(&model_path)
-                .context("ort CPU fallback")
         }
+    }
+    #[cfg(not(feature = "cuda"))]
+    {
+        // built without the `cuda` feature: CPU-only session
+        ort::session::Session::builder()?
+            .commit_from_file(model_path)
+            .context("ort session from model.onnx")
     }
 }
 

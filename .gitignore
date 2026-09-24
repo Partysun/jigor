@@ -28,3 +28,5 @@ Thumbs.db
 /npm/platforms/*/jigor
 /npm/platforms/*/jigor.exe
 /npm/jigor.bin
+# --- Python build output ---
+/dist/

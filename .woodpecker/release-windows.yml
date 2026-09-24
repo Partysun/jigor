@@ -16,6 +16,9 @@ steps:
       UV_PUBLISH_TOKEN:
         from_secret: uv_token
     commands:
+      # guard against an agent rustup with no default toolchain configured
+      # (PS 5.1 has no `||`: let rustup fail the step if it cannot set a default)
+      - rustup default stable
       - cargo install --quiet uv
       - uv tool install --quiet maturin
       - uv tool run maturin build --release --out dist

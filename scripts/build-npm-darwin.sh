@@ -32,9 +32,12 @@ echo "deployment target: $MACOSX_DEPLOYMENT_TARGET / $CMAKE_OSX_DEPLOYMENT_TARGE
 export RUSTUP_HOME="$(eval echo "~$(id -un)")/.rustup"
 export CARGO_HOME="$(eval echo "~$(id -un)")/.cargo"
 export PATH="$CARGO_HOME/bin:$PATH"
+rustup component add rustfmt clippy 2>/dev/null || true
 rustup default stable
-# the universal2 toolchain merges the x86_64 + arm64 std and linker output
-rustup target add universal2-apple-darwin
+# no universal2-apple-darwin target exists on this toolchain; build both
+# arch targets explicitly (like govor's ci-macos-build.sh) and merge with
+# Xcode's lipo below
+rustup target add aarch64-apple-darwin x86_64-apple-darwin
 
 CACHE="$(eval echo "~$(id -un)")/Library/Caches/jigor-ci"
 mkdir -p "$CACHE"
@@ -60,13 +63,16 @@ test -f "$ORT_LIB_PATH/libonnxruntime_session.a" || {
 export ORT_LIB_PATH
 echo "ORT_LIB_PATH: $ORT_LIB_PATH"
 
-cargo build -p jigor-cli --release --target universal2-apple-darwin
+cargo build -p jigor-cli --release --target x86_64-apple-darwin
+cargo build -p jigor-cli --release --target aarch64-apple-darwin
 
-BIN="target/universal2-apple-darwin/release/jigor"
-if [ ! -f "$BIN" ]; then
-  BIN="target/release/jigor"
-fi
-cp "$BIN" npm/platforms/darwin/
+X64_BIN="$CARGO_TARGET_DIR/x86_64-apple-darwin/release/jigor"
+ARM_BIN="$CARGO_TARGET_DIR/aarch64-apple-darwin/release/jigor"
+[ -f "$X64_BIN" ] || X64_BIN="target/x86_64-apple-darwin/release/jigor"
+[ -f "$ARM_BIN" ] || ARM_BIN="target/aarch64-apple-darwin/release/jigor"
+test -f "$X64_BIN" || { echo "missing x86_64 binary: $X64_BIN" >&2; exit 1; }
+test -f "$ARM_BIN" || { echo "missing arm64 binary: $ARM_BIN" >&2; exit 1; }
+lipo -create -output npm/platforms/darwin/jigor "$X64_BIN" "$ARM_BIN"
 ./npm/platforms/darwin/jigor models
 
 echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc

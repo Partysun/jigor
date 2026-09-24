@@ -10,10 +10,15 @@ labels:
 
 steps:
   - name: publish
-    image: ghcr.io/pyo3/maturin
+    image: rust:latest
     commands:
-      - pip install uv
-      - maturin build --release --manylinux 2_28 --sdist --out dist
+      # rust:latest image has no pip; uv comes via cargo
+      - cargo install --quiet uv || true
+      - uv tool install --quiet maturin || true
+      - uv tool run maturin build --release --manylinux linux --sdist --out dist
+      # linux wheels can't be manylinux-tagged (ort prebuilt needs GLIBC_2.38);
+      # publish the sdist only, wheels ship from the macos/windows pipelines
+      - rm -f dist/*linux_x86_64*.whl
       - uv publish dist/*
     environment:
       UV_PUBLISH_TOKEN:

@@ -19,4 +19,6 @@ steps:
       NPM_TOKEN:
         from_secret: npm_token
     commands:
-      - .\scripts\build-npm-win32.ps1
+      # plain `powershell` blocks .ps1 scripts (execution policy); run a
+      # nested shell with a bypass
+      - powershell -NoProfile -ExecutionPolicy Bypass -File scripts\build-npm-win32.ps1

@@ -25,6 +25,12 @@ serde_json.workspace = true
 http.workspace = true
 ureq.workspace = true
 
+[features]
+# default keeps the CUDA provider (dev/test/CLI builds); the wheel build
+# compiles with default-features=false for a CPU-only manylinux wheel
+default = ["cuda"]
+cuda = ["ort/cuda"]
+
 [dev-dependencies]
 approx = "0.5"
 # runtime for the `#[tokio::test]` harness in the lib tests

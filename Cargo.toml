@@ -20,11 +20,13 @@ license = "Apache-2.0"
 repository = "https://github.com/Partysun/jigor"
 
 [workspace.dependencies]
-jigor = { path = "crates/jigor", version = "0.1.0" }
+jigor = { path = "crates/jigor", version = "0.1.0", default-features = false }
 jigor-cli = { path = "crates/jigor-cli", version = "0.1.0" }
 # ort defaults to tls-native (OpenSSL); keep every other default but use
-# its rustls TLS so no build needs the openssl native stack.
-ort = { version = "2.0.0-rc.12", default-features = false, features = ["cuda", "tls-rustls", "std", "ndarray", "tracing", "download-binaries", "copy-dylibs", "api-27"] }
+# its rustls TLS so no build needs the openssl native stack. CUDA is
+# currently off in the release build (see JIGOR_DEVICE; re-add "cuda" to
+# the features when a manylinux-compatible GPU dist is available).
+ort = { version = "2.0.0-rc.12", default-features = false, features = ["tls-rustls", "std", "ndarray", "tracing", "download-binaries", "copy-dylibs", "api-27"] }
 tokenizers = "0.23.1"
 ndarray = "0.17"
 anyhow = "1.0"

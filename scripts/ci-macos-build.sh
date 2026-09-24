@@ -28,9 +28,12 @@ echo "deployment target: $MACOSX_DEPLOYMENT_TARGET / $CMAKE_OSX_DEPLOYMENT_TARGE
 export RUSTUP_HOME="$(eval echo "~$(id -un)")/.rustup"
 export CARGO_HOME="$(eval echo "~$(id -un)")/.cargo"
 export PATH="$CARGO_HOME/bin:$PATH"
+rustup component add rustfmt clippy 2>/dev/null || true
 rustup default stable
-# maturin --universal2 builds against the rust unified universal2 toolchain.
-rustup target add universal2-apple-darwin
+# no universal2-apple-darwin target exists on this toolchain; like govor's
+# ci-macos-build.sh, install both per-arch targets and let maturin's
+# --universal2 merge them
+rustup target add aarch64-apple-darwin x86_64-apple-darwin
 
 CACHE="$(eval echo "~$(id -un)")/Library/Caches/jigor-ci"
 mkdir -p "$CACHE"

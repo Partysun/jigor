@@ -9,6 +9,10 @@
 # while script files reach the shell untouched.
 $ErrorActionPreference = "Stop"
 
+# guard against an agent rustup with no default toolchain configured
+rustup default stable
+if (-not $?) { throw "rustup default stable failed" }
+
 cargo build -p jigor-cli --release
 if (-not $?) { throw "cargo build failed" }
 
