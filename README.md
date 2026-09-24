@@ -93,7 +93,8 @@ distribution — the same code, three ways to consume it:
 - **CLI + server (cargo)** — `cargo install jigor-cli` installs the `jigor`
   binary: `jigor serve`, `jigor ask`, `jigor models`.
 - **CLI + server (npm)** — `npm install --global jigor` (prebuilt binary,
-  per-platform packages: linux x64/arm64, macos x64/arm64, windows x64).
+  per-platform packages: linux x64/arm64, macos universal2 — Intel + Apple
+  Silicon, windows x64).
 - **CLI + server (pip)** — `pip install jigor` (maturin wheel) installs the
   same `jigor` console script.
 

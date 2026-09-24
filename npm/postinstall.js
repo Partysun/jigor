@@ -11,8 +11,8 @@ function detectPackageName() {
   const { platform, arch } = process;
   switch (platform) {
     case "darwin":
-      if (arch === "arm64") return "jigor-darwin-arm64";
-      if (arch === "x64") return "jigor-darwin-x64";
+      // one universal2 fat binary covers Intel (x64) and Apple Silicon (arm64)
+      if (arch === "x64" || arch === "arm64") return "jigor-darwin";
       break;
     case "linux": {
       const { MUSL, familySync } = require("detect-libc");
@@ -66,7 +66,7 @@ function main() {
     console.error(
       "[jigor] No native binary found for " +
         `${process.platform ?? "?"}/${process.arch ?? "?"}. ` +
-        "Supported: linux x64/arm64 (glibc), macos x64/arm64, windows x64. " +
+        "Supported: linux x64/arm64 (glibc), macos (universal2: Intel + Apple Silicon), windows x64. " +
         "Musl and other platforms are not packaged yet.",
     );
     process.exit(1);

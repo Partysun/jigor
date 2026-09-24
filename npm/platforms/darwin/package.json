@@ -1,9 +1,9 @@
 {
-  "name": "jigor-darwin-x64",
+  "name": "jigor-darwin",
   "version": "0.1.0",
-  "description": "jigor binary for darwin x64",
+  "description": "jigor binary for macOS — universal2 fat binary (Intel x64 and Apple Silicon arm64)",
   "os": ["darwin"],
-  "cpu": ["x64"],
+  "cpu": ["x64", "arm64"],
   "files": ["jigor"],
   "license": "Apache-2.0",
   "repository": "https://github.com/Partysun/jigor",

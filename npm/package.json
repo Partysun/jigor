@@ -26,8 +26,7 @@
     "postinstall": "node postinstall.js"
   },
   "optionalDependencies": {
-    "jigor-darwin-arm64": "0.1.0",
-    "jigor-darwin-x64": "0.1.0",
+    "jigor-darwin": "0.1.0",
     "jigor-linux-arm64-gnu": "0.1.0",
     "jigor-linux-x64-gnu": "0.1.0",
     "jigor-win32-x64-msvc": "0.1.0"

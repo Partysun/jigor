@@ -25,8 +25,8 @@ across every backend.
 - crates.io: `jigor` (library) and `jigor-cli` (binary) from one
   workspace, published together
 - PyPI: `jigor` wheel (maturin) wrapping the same binary as a console script
-- npm: `jigor` binary packages for linux x64/arm64, macos x64/arm64,
-  windows x64
+- npm: `jigor` binary packages for linux x64/arm64, macos (universal2 —
+  Intel and Apple Silicon in one binary), windows x64
 - Tests: unit suites for the wire protocol and backends, hurl + CLI
   integration suites, examples coverage
 
