@@ -3,8 +3,8 @@
 //! Mirrors the Python `von` using `ort` + `tokenizers`; the model is
 //! `sevenreasons/von-onnx-fp16` (FP16, logits [batch,3], entail=0).
 
+use crate::hub::hub_file;
 use anyhow::{Context, Result as AnyhowResult};
-use hf_hub::api::sync::Api;
 use ndarray::Array2;
 use std::collections::HashMap;
 use std::path::Path;
@@ -45,17 +45,13 @@ impl VonBackend {
     }
 
     pub fn new_with_model(model_id: &str) -> Result<Self> {
-        let api = Api::new().context("hf hub api")?;
-        let repo = api.model(model_id.to_string());
-
-        let model_path = repo.get("model.onnx").context("download model.onnx")?;
-        let tokenizer_path = repo
-            .get("tokenizer/tokenizer.json")
-            .context("download tokenizer")?;
+        let model_path = hub_file(model_id, "model.onnx").context("download model.onnx")?;
+        let tokenizer_path =
+            hub_file(model_id, "tokenizer/tokenizer.json").context("download tokenizer")?;
 
         // calibration
         let mut temperature = 1.0367_f32;
-        if let Ok(calib_path) = repo.get("calibration.json")
+        if let Ok(calib_path) = hub_file(model_id, "calibration.json")
             && let Ok(s) = std::fs::read_to_string(&calib_path)
             && let Ok(v) = serde_json::from_str::<serde_json::Value>(&s)
             && let Some(t) = v.get("temperature").and_then(|x| x.as_f64())

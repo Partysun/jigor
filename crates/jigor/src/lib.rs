@@ -17,6 +17,7 @@
 // ---- shared ort session setup (von and laya) ------------------------------
 
 pub mod error;
+mod hub;
 pub use error::{Error, Result};
 
 use anyhow::{Context, Result as AnyhowResult};

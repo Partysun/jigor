@@ -24,7 +24,6 @@ jigor = { path = "crates/jigor", version = "0.1.0" }
 jigor-cli = { path = "crates/jigor-cli", version = "0.1.0" }
 ort = { version = "2.0.0-rc.12", features = ["cuda"] }
 tokenizers = "0.23.1"
-hf-hub = "0.4.3"
 ndarray = "0.17"
 anyhow = "1.0"
 thiserror = "2.0"
@@ -36,7 +35,7 @@ hyper-util = { version = "0.1.20", features = ["server", "http1", "tokio"] }
 http-body-util = "0.1.4"
 http = "1.4.2"
 bytes = "1.12.1"
-ureq = "3.4.2"
+ureq = { version = "3.4.2", default-features = false, features = ["rustls", "gzip"] }
 
 # Optimize for size, like klava's release profile (inherited by all members)
 [profile.release]

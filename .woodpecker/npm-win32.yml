@@ -2,7 +2,7 @@
 # Native powershell step on the local Windows agent: Step environments DO
 # reach powershell steps, but not the bash (WSL) steps, so the whole
 # publish runs in powershell (same as release-windows.yml). All logic
-# lives in a script file so Woodpecker's envsubst never touches a `$`.
+# lives in a script file so Woodpecker's envsubst never touches a dollar sign.
 when:
   - event: deployment
     evaluate: '(CI_PIPELINE_DEPLOY_TASK ?? "") in ["", "npm", "publish"]'

@@ -28,7 +28,7 @@ steps:
       - cp target/release/jigor npm/platforms/linux-x64-gnu/
       - ./npm/platforms/linux-x64-gnu/jigor models
       - node scripts/npm-version.js npm/platforms/linux-x64-gnu
-      - echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
+      - echo "//registry.npmjs.org/:_authToken=$${NPM_TOKEN}" >> ~/.npmrc
       - cd npm/platforms/linux-x64-gnu && npm publish --access public
 
   - name: npm-linux-arm64
@@ -43,7 +43,7 @@ steps:
       - cargo build -p jigor-cli --release --target aarch64-unknown-linux-gnu
       - cp target/release/jigor npm/platforms/linux-arm64-gnu/
       - node scripts/npm-version.js npm/platforms/linux-arm64-gnu
-      - echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
+      - echo "//registry.npmjs.org/:_authToken=$${NPM_TOKEN}" >> ~/.npmrc
       - cd npm/platforms/linux-arm64-gnu && npm publish --access public
 
   - name: npm-publish-meta
@@ -56,5 +56,5 @@ steps:
       - npm-linux-arm64
     commands:
       - node scripts/npm-version.js npm
-      - echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
+      - echo "//registry.npmjs.org/:_authToken=$${NPM_TOKEN}" >> ~/.npmrc
       - cd npm && npm publish --access public

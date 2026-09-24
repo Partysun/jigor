@@ -17,8 +17,8 @@
 //!   [CLS] <qtype> question: <instructions> [SEP] [MASK] opt0 [MASK] opt1
 //!   ... [SEP] <state> [SEP], 512 tokens max, 192 for the option head.
 
+use crate::hub::hub_file;
 use anyhow::{Context, Result as AnyhowResult, bail};
-use hf_hub::api::sync::Api;
 use ndarray::Array2;
 use std::collections::HashMap;
 use tokenizers::Tokenizer;
@@ -181,21 +181,17 @@ impl LayaBackend {
     }
 
     pub fn new_with_model(model_id: &str) -> Result<Self> {
-        let api = Api::new().context("hf hub api")?;
-        let repo = api.model(model_id.to_string());
-
         let onnx_file = std::env::var("LAYA_ONNX_FILE").unwrap_or_else(|_| "laya.onnx".to_string());
-        let model_path = repo
-            .get(&onnx_file)
+        let model_path = hub_file(model_id, &onnx_file)
             .context("download laya.onnx (LAYA_ONNX_FILE to override)")?;
         if let Some(data) = onnx_file.strip_suffix(".onnx") {
             // external-data exports need their <name>.onnx.data next to them
-            let _ = repo.get(&format!("{data}.onnx.data"));
+            let _ = hub_file(model_id, &format!("{data}.onnx.data"));
         }
-        let tokenizer_path = repo.get("tokenizer.json").context("download tokenizer")?;
+        let tokenizer_path = hub_file(model_id, "tokenizer.json").context("download tokenizer")?;
 
         let (mut temperature, mut temperature_by_options) = default_laya_temps();
-        if let Ok(cfg_path) = repo.get("rl_agent_config.json")
+        if let Ok(cfg_path) = hub_file(model_id, "rl_agent_config.json")
             && let Ok(s) = std::fs::read_to_string(&cfg_path)
             && let Ok(v) = serde_json::from_str::<Value>(&s)
         {
