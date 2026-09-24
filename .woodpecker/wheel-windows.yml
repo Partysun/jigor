@@ -9,17 +9,13 @@ labels:
 
 steps:
   # Native powershell step on the local Windows agent: Step environments DO reach powershell steps, but not
-  # the bash (WSL) steps, so the whole publish runs in powershell.
+  # the bash (WSL) steps, so the whole publish runs in powershell (same as npm-win32.yml).
   - name: publish-windows
     image: powershell
     environment:
       UV_PUBLISH_TOKEN:
         from_secret: uv_token
     commands:
-      # guard against an agent rustup with no default toolchain configured
-      # (PS 5.1 has no `||`: let rustup fail the step if it cannot set a default)
-      - rustup default stable
-      - cargo install --quiet uv
-      - uv tool install --quiet maturin
-      - uv tool run maturin build --release --out dist
-      - uv publish dist/*
+      # plain `powershell` blocks .ps1 scripts (execution policy); run a
+      # nested shell with a bypass
+      - powershell -NoProfile -ExecutionPolicy Bypass -File scripts\build-wheel-win32.ps1

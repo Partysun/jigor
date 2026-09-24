@@ -9,6 +9,17 @@
 # while script files reach the shell untouched.
 $ErrorActionPreference = "Stop"
 
+# ort-sys panics when it can't resolve its prebuilt-binaries cache dir on
+# Windows (SHGetKnownFolderPath returns nothing inside the agent session —
+# same fix as govor's ci-windows-build.sh); point it at a writable dir.
+if (-not $env:ORT_CACHE_DIR) {
+    if ($env:LOCALAPPDATA) {
+        $env:ORT_CACHE_DIR = Join-Path $env:LOCALAPPDATA "jigor-ci\ort-pyke"
+    } else {
+        $env:ORT_CACHE_DIR = Join-Path $env:TEMP "jigor-ci\ort-pyke"
+    }
+}
+
 # guard against an agent rustup with no default toolchain configured
 rustup default stable
 if (-not $?) { throw "rustup default stable failed" }
