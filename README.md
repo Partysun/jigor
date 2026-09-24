@@ -92,7 +92,7 @@ distribution — the same code, three ways to consume it:
   and its dependencies (hyper, tokio, ...) never enter consumer builds.
 - **CLI + server (cargo)** — `cargo install jigor-cli` installs the `jigor`
   binary: `jigor serve`, `jigor ask`, `jigor models`.
-- **CLI + server (npm)** — `npm install --global jigor` (prebuilt binary,
+- **CLI + server (npm)** — `npm install --global @zatsepin/jigor` (prebuilt binary,
   per-platform packages: linux x64/arm64, macos universal2 — Intel + Apple
   Silicon, windows x64).
 - **CLI + server (pip)** — `pip install jigor` (maturin wheel) installs the

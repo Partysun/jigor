@@ -6,7 +6,7 @@ wire protocol across all of them: `noul`/`choice`/`score` questions in,
 typed answers out.
 
 ```bash
-cargo install jigor-cli      # or: npm install --global jigor  /  pip install jigor
+cargo install jigor-cli      # or: npm install --global @zatsepin/jigor  /  pip install jigor
 jigor serve --host 127.0.0.1 --port 8000   # HTTP gateway: POST /v1/systemone, GET /healthz
 jigor ask [--model <id>] [--provider <p>]  # the same wire over stdin, no HTTP layer
 jigor models                               # provider x model pairs

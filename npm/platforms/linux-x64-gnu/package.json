@@ -1,11 +1,19 @@
 {
-  "name": "jigor-linux-x64-gnu",
+  "name": "@zatsepin/jigor-linux-x64-gnu",
   "version": "0.1.0",
   "description": "jigor binary for linux x64 (glibc)",
-  "os": ["linux"],
-  "cpu": ["x64"],
-  "libc": ["glibc"],
-  "files": ["jigor"],
+  "os": [
+    "linux"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "libc": [
+    "glibc"
+  ],
+  "files": [
+    "jigor"
+  ],
   "license": "Apache-2.0",
   "repository": "https://github.com/Partysun/jigor",
   "engines": {

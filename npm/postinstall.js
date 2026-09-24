@@ -12,17 +12,17 @@ function detectPackageName() {
   switch (platform) {
     case "darwin":
       // one universal2 fat binary covers Intel (x64) and Apple Silicon (arm64)
-      if (arch === "x64" || arch === "arm64") return "jigor-darwin";
+      if (arch === "x64" || arch === "arm64") return "@zatsepin/jigor-darwin";
       break;
     case "linux": {
       const { MUSL, familySync } = require("detect-libc");
       if (familySync() === MUSL) return null;
-      if (arch === "arm64") return "jigor-linux-arm64-gnu";
-      if (arch === "x64") return "jigor-linux-x64-gnu";
+      if (arch === "arm64") return "@zatsepin/jigor-linux-arm64-gnu";
+      if (arch === "x64") return "@zatsepin/jigor-linux-x64-gnu";
       break;
     }
     case "win32":
-      if (arch === "x64") return "jigor-win32-x64-msvc";
+      if (arch === "x64") return "@zatsepin/jigor-win32-x64-msvc";
       break;
   }
   return null;
