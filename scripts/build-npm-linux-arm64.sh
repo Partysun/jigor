@@ -17,7 +17,7 @@ export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc
 # the env utility can set CXX_aarch64-unknown-linux-gnu (the dashless
 # spelling just above covers the underscored lookup cargo also accepts).
 env "CXX_aarch64-unknown-linux-gnu=aarch64-linux-gnu-g++" cargo build -p jigor-cli --release --target aarch64-unknown-linux-gnu
-cp target/release/jigor npm/platforms/linux-arm64-gnu/
+cp target/aarch64-unknown-linux-gnu/release/jigor npm/platforms/linux-arm64-gnu/
 node scripts/npm-version.js npm/platforms/linux-arm64-gnu
 echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
 node scripts/npm-publish.js npm/platforms/linux-arm64-gnu
