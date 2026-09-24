@@ -66,10 +66,8 @@ echo "ORT_LIB_PATH: $ORT_LIB_PATH"
 cargo build -p jigor-cli --release --target x86_64-apple-darwin
 cargo build -p jigor-cli --release --target aarch64-apple-darwin
 
-X64_BIN="$CARGO_TARGET_DIR/x86_64-apple-darwin/release/jigor"
-ARM_BIN="$CARGO_TARGET_DIR/aarch64-apple-darwin/release/jigor"
-[ -f "$X64_BIN" ] || X64_BIN="target/x86_64-apple-darwin/release/jigor"
-[ -f "$ARM_BIN" ] || ARM_BIN="target/aarch64-apple-darwin/release/jigor"
+X64_BIN="${CARGO_TARGET_DIR:-target}/x86_64-apple-darwin/release/jigor"
+ARM_BIN="${CARGO_TARGET_DIR:-target}/aarch64-apple-darwin/release/jigor"
 test -f "$X64_BIN" || { echo "missing x86_64 binary: $X64_BIN" >&2; exit 1; }
 test -f "$ARM_BIN" || { echo "missing arm64 binary: $ARM_BIN" >&2; exit 1; }
 lipo -create -output npm/platforms/darwin/jigor "$X64_BIN" "$ARM_BIN"
