@@ -18,7 +18,7 @@ JIGOR_PORT  ?= 8000
 JIGOR_DEVICE?=
 export JIGOR_DEVICE
 
-.PHONY: build release unit integration cli test serve install publish dev tweet tweet-test tagger tagger-test bench lint fmt fmt-check help
+.PHONY: build release unit integration cli test serve install publish published dev tweet tweet-test tagger tagger-test bench lint fmt fmt-check help
 
 build:
 	cargo build
@@ -47,6 +47,11 @@ install:
 publish:
 	cargo publish -p jigor
 	cargo publish -p jigor-cli
+
+# Verify the workspace version is live on crates.io/PyPI/npm
+# (override with: make published VERSION=x.y.z).
+published:
+	bash scripts/check-published.sh $(VERSION)
 
 dev:
 	cargo run -p jigor --example decide
@@ -87,4 +92,5 @@ help:
 		'  dev          run the decide example' \
 		'  bench        run the release benchmark' \
 		'  lint         cargo clippy --all-targets -D warnings' \
-		'  fmt          cargo fmt | fmt-check for check mode'
+		'  fmt          cargo fmt | fmt-check for check mode' \
+		'  published    check crates.io/PyPI/npm for the current version'
