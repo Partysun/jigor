@@ -24,6 +24,7 @@ rustup default stable
 cargo build -p jigor-cli --release
 cp target/release/jigor npm/platforms/darwin-arm64/
 
+echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
 node scripts/npm-version.js npm/platforms/darwin-arm64
 cd npm/platforms/darwin-arm64
 npm publish --access public

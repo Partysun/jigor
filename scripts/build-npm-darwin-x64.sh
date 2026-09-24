@@ -56,7 +56,9 @@ if [ ! -f "$BIN" ]; then
   BIN="target/release/jigor"
 fi
 cp "$BIN" npm/platforms/darwin-x64/
+./npm/platforms/darwin-x64/jigor models
 
+echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
 node scripts/npm-version.js npm/platforms/darwin-x64
 cd npm/platforms/darwin-x64
 npm publish --access public

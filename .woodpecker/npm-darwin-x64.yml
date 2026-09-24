@@ -1,0 +1,20 @@
+# npm distribution — Intel Mac binary package (`jigor-darwin-x64`).
+# The darwin/amd64 agent source-compiles ONNX Runtime for x86_64 macOS
+# (no prebuilt ort-sys runtime), see scripts/build-npm-darwin-x64.sh.
+when:
+  - event: deployment
+    evaluate: '(CI_PIPELINE_DEPLOY_TASK ?? "") in ["", "npm", "publish"]'
+  - event: tag
+    ref: refs/tags/v*
+
+labels:
+  platform: darwin/amd64
+
+steps:
+  - name: npm-darwin-x64
+    image: bash
+    environment:
+      NPM_TOKEN:
+        from_secret: npm_token
+    commands:
+      - bash scripts/build-npm-darwin-x64.sh

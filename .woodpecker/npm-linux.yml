@@ -1,0 +1,60 @@
+# npm distribution — linux builds + the meta `jigor` package publish.
+# Each platform package publishes from its own per-platform pipeline file
+# (`.woodpecker/npm-*.yml`): Woodpecker runs a pipeline on one agent kind,
+# selected by pipeline-level labels, so a multi-agent matrix = one file per
+# platform. The meta package publishes from here after the linux packages;
+# the platform packages for the other OSes publish in parallel from their
+# own tag-triggered pipelines (npm does not verify the platform package
+# versions at meta-publish time).
+when:
+  - event: deployment
+    evaluate: '(CI_PIPELINE_DEPLOY_TASK ?? "") in ["", "npm", "publish"]'
+  - event: tag
+    ref: refs/tags/v*
+
+labels:
+  backend: docker
+  platform: linux/amd64
+
+steps:
+  - name: npm-linux-x64
+    image: rust:latest
+    environment:
+      NPM_TOKEN:
+        from_secret: npm_token
+    commands:
+      - apt-get update && apt-get install -y nodejs npm
+      - cargo build -p jigor-cli --release
+      - cp target/release/jigor npm/platforms/linux-x64-gnu/
+      - ./npm/platforms/linux-x64-gnu/jigor models
+      - node scripts/npm-version.js npm/platforms/linux-x64-gnu
+      - echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
+      - cd npm/platforms/linux-x64-gnu && npm publish --access public
+
+  - name: npm-linux-arm64
+    image: rust:latest
+    environment:
+      NPM_TOKEN:
+        from_secret: npm_token
+    commands:
+      - apt-get update && apt-get install -y nodejs npm gcc-aarch64-linux-gnu
+      - rustup target add aarch64-unknown-linux-gnu
+      - export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc
+      - cargo build -p jigor-cli --release --target aarch64-unknown-linux-gnu
+      - cp target/release/jigor npm/platforms/linux-arm64-gnu/
+      - node scripts/npm-version.js npm/platforms/linux-arm64-gnu
+      - echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
+      - cd npm/platforms/linux-arm64-gnu && npm publish --access public
+
+  - name: npm-publish-meta
+    image: node:22
+    environment:
+      NPM_TOKEN:
+        from_secret: npm_token
+    depends_on:
+      - npm-linux-x64
+      - npm-linux-arm64
+    commands:
+      - node scripts/npm-version.js npm
+      - echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
+      - cd npm && npm publish --access public
