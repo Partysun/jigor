@@ -22,7 +22,7 @@ in, typed answers out. Identical on von, laya and any OpenRouter model.
 [dependencies]
 jigor = { path = "../jigor" }                             # local checkout
 # jigor = { git = "https://github.com/Partysun/jigor" }   # from GitHub
-# jigor = "0.1.1"                                         # once published
+# jigor = "0.1.2"                                         # once published
 serde_json = { version = "1.0" }                          # Value, json!
 ```
 
@@ -87,7 +87,7 @@ match von.answers(&state, &questions, None) {
 One workspace, two crates (`crates/jigor` + `crates/jigor-cli`), one pip
 distribution — the same code, three ways to consume it:
 
-- **Library** — `jigor = { version = "0.1.1" }` in your crate (see
+- **Library** — `jigor = { version = "0.1.2" }` in your crate (see
   `Usage as lib`). Only the library target is compiled: the CLI/server code
   and its dependencies (hyper, tokio, ...) never enter consumer builds.
 - **CLI + server (cargo)** — `cargo install jigor-cli` installs the `jigor`

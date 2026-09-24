@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.1.2] - 2026-09-25
+
+Fix the ONNX Runtime API mismatch that panicked every macOS build at
+startup, and clarify the install options.
+
+### Fixes
+
+- request ORT API 24 instead of ort's default 27: macOS binaries
+  statically link the source-built ONNX Runtime v1.24.2 (Microsoft
+  ships no Intel mac prebuilts past 1.24), whose runtime serves only
+  API 1..24; the linux/windows 1.28 prebuilts accept 24 as well
+- document `cargo install` supported targets (linux x64/arm64, macOS
+  Apple Silicon, windows x64 — Intel macs use uvx/pip/npm) and that
+  the installed command is `jigor`
+
 ## [0.1.1] - 2026-09-25
 
 Ship the dedicated CLI README (`crates/jigor-cli/README.md`) on every
