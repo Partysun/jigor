@@ -1,0 +1,10 @@
+{
+  "model": "von-1.0.0",
+  "state": "Disk volume /var/log at 98% capacity.",
+  "questions": {
+    "requires_intervention": {
+      "type": "noul",
+      "instructions": "Does this disk space condition require operational intervention?"
+    }
+  }
+}

@@ -1,0 +1,32 @@
+[package]
+name = "jigor"
+description = "System One decision gateway — local von/laya ONNX backends (ort) plus the remote jev API (OpenRouter Decisions)"
+categories = ["command-line-utilities", "development-tools"]
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+# use relative path because maturin does not recognize inherited readmes
+readme = "../../README.md"
+
+[lib]
+name = "jigor"
+path = "src/lib.rs"
+
+[dependencies]
+ort.workspace = true
+tokenizers.workspace = true
+hf-hub.workspace = true
+ndarray.workspace = true
+anyhow.workspace = true
+thiserror.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+http.workspace = true
+ureq.workspace = true
+
+[dev-dependencies]
+approx = "0.5"
+# runtime for the `#[tokio::test]` harness in the lib tests
+tokio.workspace = true

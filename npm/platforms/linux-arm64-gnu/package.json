@@ -1,0 +1,18 @@
+{
+  "name": "jigor-linux-arm64-gnu",
+  "version": "0.1.0",
+  "description": "jigor binary for linux arm64 (glibc)",
+  "os": ["linux"],
+  "cpu": ["arm64"],
+  "libc": ["glibc"],
+  "files": ["jigor"],
+  "license": "Apache-2.0",
+  "repository": "https://github.com/Partysun/jigor",
+  "engines": {
+    "node": ">= 18.0.0"
+  },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/",
+    "access": "public"
+  }
+}

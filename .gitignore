@@ -1,0 +1,30 @@
+# --- Rust / Cargo ---
+/target/
+
+# Cargo.lock is intentionally committed (pins ort/tokenizers/hf-hub for the jigor binary)
+
+# --- Logs ---
+*.log
+
+# --- Environment / secrets ---
+.env
+.env.*
+!.env.example
+
+# --- Editors / IDE ---
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+*.orig
+*.rej
+
+# --- OS ---
+.DS_Store
+Thumbs.db
+
+# --- npm: binaries are injected by CI, only the package.json templates are committed ---
+/npm/platforms/*/jigor
+/npm/platforms/*/jigor.exe
+/npm/jigor.bin

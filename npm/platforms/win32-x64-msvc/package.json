@@ -1,0 +1,17 @@
+{
+  "name": "jigor-win32-x64-msvc",
+  "version": "0.1.0",
+  "description": "jigor binary for windows x64",
+  "os": ["win32"],
+  "cpu": ["x64"],
+  "files": ["jigor.exe"],
+  "license": "Apache-2.0",
+  "repository": "https://github.com/Partysun/jigor",
+  "engines": {
+    "node": ">= 18.0.0"
+  },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/",
+    "access": "public"
+  }
+}

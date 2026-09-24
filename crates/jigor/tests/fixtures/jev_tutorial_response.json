@@ -1,0 +1,26 @@
+{
+  "id": "gen-dec-1790015143-AIaTutprXsJ5EwohRSjb",
+  "model": "typesafe/jev-1.13-20260917",
+  "provider": "TypeSafe",
+  "answers": {
+    "is_bug": { "type": "noul", "noul": 0.96 },
+    "team": {
+      "type": "choice",
+      "choice": "payments",
+      "confidence": 0.67,
+      "probabilities": { "payments": 0.78, "frontend": 0.22, "account": 0.0 }
+    },
+    "urgency": {
+      "type": "score",
+      "score": 1.99,
+      "confidence": 0.99,
+      "probabilities": { "0": 0.0, "1": 0.0, "2": 1.0 },
+      "legend": {
+        "0": "Can wait for the next release",
+        "1": "Should be fixed this week",
+        "2": "Blocking revenue right now"
+      }
+    }
+  },
+  "usage": { "input_tokens": 476, "output_tokens": 70, "cost": 0.000019992 }
+}

@@ -1,0 +1,3 @@
+# ripgrep / fd: skip build output and logs during search
+/target
+*.log

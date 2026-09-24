@@ -1,0 +1,47 @@
+# jigor — workspace root (virtual manifest, ast-grep style).
+#
+# Two crates:
+#   crates/jigor     — the `jigor` library (decision backends + wire protocol)
+#   crates/jigor-cli — the `jigor` CLI/server binary
+#
+# Shared metadata and dependency versions live here; members inherit them
+# with `X.workspace = true`.
+
+[workspace]
+members = ["crates/*"]
+default-members = ["crates/*"]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+authors = ["Iurii Zatsepin (https://zatsepin.dev)"]
+edition = "2024"
+license = "Apache-2.0"
+repository = "https://github.com/Partysun/jigor"
+
+[workspace.dependencies]
+jigor = { path = "crates/jigor", version = "0.1.0" }
+jigor-cli = { path = "crates/jigor-cli", version = "0.1.0" }
+ort = { version = "2.0.0-rc.12", features = ["cuda"] }
+tokenizers = "0.23.1"
+hf-hub = "0.4.3"
+ndarray = "0.17"
+anyhow = "1.0"
+thiserror = "2.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = { version = "1.0", features = ["arbitrary_precision"] }
+tokio = { version = "1.52.4", features = ["rt-multi-thread", "macros", "net"] }
+hyper = { version = "1.10.1", features = ["http1", "server"] }
+hyper-util = { version = "0.1.20", features = ["server", "http1", "tokio"] }
+http-body-util = "0.1.4"
+http = "1.4.2"
+bytes = "1.12.1"
+ureq = "3.4.2"
+
+# Optimize for size, like klava's release profile (inherited by all members)
+[profile.release]
+opt-level = "z"   # Optimize for size
+lto = true        # Enable Link Time Optimization
+codegen-units = 1 # Better optimization
+strip = true      # Strip symbols for smaller binary
+panic = "abort"   # Smaller binary

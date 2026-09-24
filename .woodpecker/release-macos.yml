@@ -1,0 +1,23 @@
+when:
+  - event: deployment
+    evaluate: '(CI_PIPELINE_DEPLOY_TASK ?? "") in ["", "macos", "publish"]'
+  - event: tag
+    ref: refs/tags/v*
+
+labels:
+  platform: darwin/amd64
+
+steps:
+  # Local macOS agent:
+  # The universal2 wheel needs a source-compiled ONNX Runtime (x86_64+arm64
+  # merged, see scripts/ci-macos-build.sh — ort-sys ships prebuilt binaries
+  # for arm64 macOS only). The build lives in a script file: Woodpecker
+  # rewrites inline step commands with its envsubst (${...} gets
+  # interpolated and can even make the config fail to parse).
+  - name: macos-publish
+    image: bash
+    environment:
+      UV_PUBLISH_TOKEN:
+        from_secret: uv_token
+    commands:
+      - bash scripts/ci-macos-build.sh

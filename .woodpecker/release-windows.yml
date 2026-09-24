@@ -1,0 +1,22 @@
+when:
+  - event: deployment
+    evaluate: '(CI_PIPELINE_DEPLOY_TASK ?? "") in ["", "windows", "publish"]'
+  - event: tag
+    ref: refs/tags/v*
+
+labels:
+  platform: windows/amd64
+
+steps:
+  # Native powershell step on the local Windows agent: Step environments DO reach powershell steps, but not
+  # the bash (WSL) steps, so the whole publish runs in powershell.
+  - name: windows-publish
+    image: powershell
+    environment:
+      UV_PUBLISH_TOKEN:
+        from_secret: uv_token
+    commands:
+      - cargo install --quiet uv
+      - uv tool install --quiet maturin
+      - uv tool run maturin build --release --out dist
+      - uv publish dist/*

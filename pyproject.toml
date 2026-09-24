@@ -1,0 +1,28 @@
+[build-system]
+requires = ["maturin>=1.0,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "jigor"
+version = "0.1.0"
+authors = [{ name = "Iurii Zatsepin", email = "support@zatsepin.dev" }]
+description = "System One decision gateway — local von/laya ONNX backends plus the remote jev Decisions API (OpenRouter); one wire protocol across models."
+readme = "README.md"
+keywords = ["system-one", "decisions", "onnx", "gateway"]
+license = { file = "LICENSE" }
+classifiers = [
+  "Environment :: Console",
+  "Programming Language :: Rust",
+  "Topic :: Text Processing",
+]
+
+[project.urls]
+Homepage = "https://github.com/Partysun/jigor"
+Repository = "https://github.com/Partysun/jigor"
+Documentation = "https://github.com/Partysun/jigor#readme"
+
+[tool.maturin]
+bindings = "bin"
+manifest-path = "crates/jigor-cli/Cargo.toml"
+strip = true
+locked = true

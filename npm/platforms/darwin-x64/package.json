@@ -1,0 +1,17 @@
+{
+  "name": "jigor-darwin-x64",
+  "version": "0.1.0",
+  "description": "jigor binary for darwin x64",
+  "os": ["darwin"],
+  "cpu": ["x64"],
+  "files": ["jigor"],
+  "license": "Apache-2.0",
+  "repository": "https://github.com/Partysun/jigor",
+  "engines": {
+    "node": ">= 18.0.0"
+  },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/",
+    "access": "public"
+  }
+}

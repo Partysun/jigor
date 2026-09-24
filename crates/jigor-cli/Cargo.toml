@@ -1,0 +1,28 @@
+[package]
+name = "jigor-cli"
+description = "jigor CLI + HTTP gateway — serve/ask/models over the System One wire protocol (von/laya local ONNX, jev on OpenRouter Decisions)"
+keywords = ["system-one", "decisions", "cli", "gateway", "onnx"]
+categories = ["command-line-utilities", "development-tools"]
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+# use relative path because maturin does not recognize inherited readmes
+readme = "../../README.md"
+
+[[bin]]
+name = "jigor"
+path = "src/main.rs"
+
+[dependencies]
+jigor.workspace = true
+ort.workspace = true
+anyhow.workspace = true
+serde_json.workspace = true
+http.workspace = true
+tokio.workspace = true
+hyper.workspace = true
+hyper-util.workspace = true
+http-body-util.workspace = true
+bytes.workspace = true
