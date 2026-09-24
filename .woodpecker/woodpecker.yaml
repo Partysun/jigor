@@ -17,6 +17,7 @@ steps:
     image: rust:latest
     commands:
       - rustup component add clippy
+      - rustup component add rustfmt
       - cargo clippy --all-targets -- -D warnings
       - cargo fmt --check
     depends_on:
@@ -28,7 +29,7 @@ steps:
       # prebuilt musl binary: `cargo install cargo-audit` costs ~4 min per run
       - curl -sSL -o /tmp/cargo-audit.tgz "https://github.com/rustsec/rustsec/releases/download/cargo-audit%2Fv0.22.2/cargo-audit-x86_64-unknown-linux-musl-v0.22.2.tgz"
       - tar -xzf /tmp/cargo-audit.tgz -C /tmp
-      - install -m 0755 /tmp/cargo-audit-*/cargo-audit ~/.cargo/bin/cargo-audit
+      - install -m 0755 /tmp/cargo-audit-*/cargo-audit /usr/local/cargo/bin/cargo-audit
       - cargo audit
     depends_on:
       - test
