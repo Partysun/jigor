@@ -15,7 +15,7 @@ steps:
   # rewrites inline step commands with its envsubst (curly-brace
   # substitutions get interpolated and can even make the config fail to
   # parse).
-  - name: macos-publish
+  - name: publish-macos
     image: bash
     environment:
       UV_PUBLISH_TOKEN:

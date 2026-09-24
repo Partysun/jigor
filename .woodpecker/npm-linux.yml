@@ -17,7 +17,7 @@ labels:
   platform: linux/amd64
 
 steps:
-  - name: npm-linux-x64
+  - name: build-x64
     image: rust:latest
     environment:
       NPM_TOKEN:
@@ -31,14 +31,16 @@ steps:
       - echo "//registry.npmjs.org/:_authToken=$${NPM_TOKEN}" >> ~/.npmrc
       - cd npm/platforms/linux-x64-gnu && npm publish --access public
 
-  - name: npm-linux-arm64
+  - name: build-arm64
     image: rust:latest
     environment:
       NPM_TOKEN:
         from_secret: npm_token
     commands:
-      - apt-get update && apt-get install -y nodejs npm gcc-aarch64-linux-gnu
+      - apt-get update && apt-get install -y nodejs npm gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
       - rustup target add aarch64-unknown-linux-gnu
+      - export CXX_aarch64-unknown-linux-gnu=aarch64-linux-gnu-g++
+      - export CXX_aarch64_unknown_linux_gnu=aarch64-linux-gnu-g++
       - export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc
       - cargo build -p jigor-cli --release --target aarch64-unknown-linux-gnu
       - cp target/release/jigor npm/platforms/linux-arm64-gnu/
@@ -46,14 +48,14 @@ steps:
       - echo "//registry.npmjs.org/:_authToken=$${NPM_TOKEN}" >> ~/.npmrc
       - cd npm/platforms/linux-arm64-gnu && npm publish --access public
 
-  - name: npm-publish-meta
+  - name: publish-meta
     image: node:22
     environment:
       NPM_TOKEN:
         from_secret: npm_token
     depends_on:
-      - npm-linux-x64
-      - npm-linux-arm64
+      - build-x64
+      - build-arm64
     commands:
       - node scripts/npm-version.js npm
       - echo "//registry.npmjs.org/:_authToken=$${NPM_TOKEN}" >> ~/.npmrc

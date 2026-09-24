@@ -13,7 +13,7 @@ labels:
   platform: windows/amd64
 
 steps:
-  - name: npm-win32-x64
+  - name: publish-x64
     image: powershell
     environment:
       NPM_TOKEN:

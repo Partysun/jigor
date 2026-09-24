@@ -10,7 +10,7 @@ labels:
 steps:
   # Native powershell step on the local Windows agent: Step environments DO reach powershell steps, but not
   # the bash (WSL) steps, so the whole publish runs in powershell.
-  - name: windows-publish
+  - name: publish-windows
     image: powershell
     environment:
       UV_PUBLISH_TOKEN:

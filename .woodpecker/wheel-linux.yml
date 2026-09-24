@@ -9,7 +9,7 @@ labels:
   platform: linux/amd64
 
 steps:
-  - name: publish
+  - name: publish-linux
     image: rust:latest
     commands:
       # rust:latest image has no pip; uv comes via cargo

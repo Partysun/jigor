@@ -102,7 +102,7 @@ The local ONNX models (`von`, `laya`) download to `~/.cache/huggingface` on
 first use; set `OPENROUTER_API_KEY` for the remote `jev` backend. Both crates
 are published together (`make publish`) from the shared version in
 `Cargo.toml`; the wheel and the npm binary packages are published by the
-release pipelines (`.woodpecker/release-*.yml`, `.woodpecker/npm.yml`).
+release pipelines (`.woodpecker/wheel-*.yml`, `.woodpecker/npm-*.yml`).
 
 ## Run examples (lib crate, no bin)
 

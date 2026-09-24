@@ -13,7 +13,7 @@ steps:
     commands:
       - cargo test
 
-  - name: build
+  - name: build-wheel
     image: rust:latest
     commands:
       - cargo install --quiet uv || true

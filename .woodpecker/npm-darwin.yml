@@ -13,7 +13,7 @@ labels:
   platform: darwin/amd64
 
 steps:
-  - name: npm-darwin
+  - name: publish-universal2
     image: bash
     environment:
       NPM_TOKEN:
