@@ -75,5 +75,4 @@ lipo -create -output npm/platforms/darwin/jigor "$X64_BIN" "$ARM_BIN"
 
 echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
 node scripts/npm-version.js npm/platforms/darwin
-cd npm/platforms/darwin
-npm publish --access public
+node scripts/npm-publish.js npm/platforms/darwin

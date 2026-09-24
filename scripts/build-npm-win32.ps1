@@ -26,6 +26,5 @@ if (-not $?) { throw "npm config set failed" }
 node scripts\npm-version.js npm/platforms/win32-x64-msvc
 if (-not $?) { throw "npm-version.js failed" }
 
-Set-Location npm\platforms\win32-x64-msvc
-npm publish --access public
+node scripts\npm-publish.js npm\platforms\win32-x64-msvc
 exit $LASTEXITCODE

@@ -29,7 +29,7 @@ steps:
       - ./npm/platforms/linux-x64-gnu/jigor models
       - node scripts/npm-version.js npm/platforms/linux-x64-gnu
       - echo "//registry.npmjs.org/:_authToken=$${NPM_TOKEN}" >> ~/.npmrc
-      - cd npm/platforms/linux-x64-gnu && npm publish --access public
+      - node scripts/npm-publish.js npm/platforms/linux-x64-gnu
 
   - name: build-arm64
     image: rust:latest
@@ -46,7 +46,7 @@ steps:
       - cp target/release/jigor npm/platforms/linux-arm64-gnu/
       - node scripts/npm-version.js npm/platforms/linux-arm64-gnu
       - echo "//registry.npmjs.org/:_authToken=$${NPM_TOKEN}" >> ~/.npmrc
-      - cd npm/platforms/linux-arm64-gnu && npm publish --access public
+      - node scripts/npm-publish.js npm/platforms/linux-arm64-gnu
 
   - name: publish-meta
     image: node:22
@@ -59,4 +59,4 @@ steps:
     commands:
       - node scripts/npm-version.js npm
       - echo "//registry.npmjs.org/:_authToken=$${NPM_TOKEN}" >> ~/.npmrc
-      - cd npm && npm publish --access public
+      - node scripts/npm-publish.js npm
