@@ -13,15 +13,22 @@ steps:
     commands:
       - cargo test
 
-  - name: build-wheel
+  - name: lint
     image: rust:latest
     commands:
-      - cargo install --quiet uv || true
-      - uv tool install --quiet maturin || true
-      # ort's prebuilt dists are gcc-13/Ubuntu-24.04-bound (GLIBC_2.38),
-      # so no manylinux_2_28 wheel is possible; build natively to prove the
-      # wheel compiles and ship the sdist. Wheels come from the macos
-      # (universal2) and windows release pipelines.
-      - uv tool run maturin build --release --manylinux linux --sdist --out dist
+      - rustup component add clippy
+      - cargo clippy --all-targets -- -D warnings
+      - cargo fmt --check
+    depends_on:
+      - test
+
+  - name: audit
+    image: rust:latest
+    commands:
+      # prebuilt musl binary: `cargo install cargo-audit` costs ~4 min per run
+      - curl -sSL -o /tmp/cargo-audit.tgz "https://github.com/rustsec/rustsec/releases/download/cargo-audit%2Fv0.22.2/cargo-audit-x86_64-unknown-linux-musl-v0.22.2.tgz"
+      - tar -xzf /tmp/cargo-audit.tgz -C /tmp
+      - install -m 0755 /tmp/cargo-audit-*/cargo-audit ~/.cargo/bin/cargo-audit
+      - cargo audit
     depends_on:
       - test
