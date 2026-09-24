@@ -36,6 +36,16 @@ async function main() {
   }
 
   console.log(`publishing ${tag}`);
+  // npm has no readme path field (unlike Cargo.toml / pyproject.toml):
+  // the registry derives the package README from files inside the tarball.
+  // For the meta package, copy the single source README in just before pack
+  // instead of committing a duplicate npm/README.md.
+  if (path.basename(path.resolve(dir)) === "npm") {
+    fs.copyFileSync(
+      path.join(__dirname, "..", "crates", "jigor-cli", "README.md"),
+      path.join(dir, "README.md"),
+    );
+  }
   execSync("npm publish --access public", { cwd: dir, stdio: "inherit" });
 }
 

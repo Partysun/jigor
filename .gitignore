@@ -30,3 +30,6 @@ Thumbs.db
 /npm/jigor.bin
 # --- Python build output ---
 /dist/
+
+# generated at publish time from crates/jigor-cli/README.md
+npm/README.md

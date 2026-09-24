@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.1.1] - 2026-09-25
+
+Ship the dedicated CLI README (`crates/jigor-cli/README.md`) on every
+registry — crates.io, PyPI, and the npm meta package — plus release
+pipeline fixes.
+
+### Fixes
+
+- npm meta package now copies the canonical README at publish time
+  instead of committing a duplicate `npm/README.md`
+- linux/arm64 npm build: `CXX_aarch64-unknown-linux-gnu` set via `env`
+  (shells reject `-` in `export` names) and the binary is copied from
+  `target/aarch64-unknown-linux-gnu/release/`
+- idempotent npm and PyPI publishing so pipeline re-runs skip versions
+  that already exist instead of failing
+
 ## [0.1.0] - 2026-09-XX
 
 First release of **jigor** — a System One decision gateway: `noul`,
