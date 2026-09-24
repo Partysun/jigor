@@ -91,7 +91,9 @@ distribution — the same code, three ways to consume it:
   `Usage as lib`). Only the library target is compiled: the CLI/server code
   and its dependencies (hyper, tokio, ...) never enter consumer builds.
 - **CLI + server (cargo)** — `cargo install jigor-cli` installs the `jigor`
-  binary: `jigor serve`, `jigor ask`, `jigor models`.
+  binary: `jigor serve`, `jigor ask`, `jigor models`. Builds against the
+  ONNX Runtime prebuilts (linux x64/arm64, macOS Apple Silicon, windows x64);
+  on Intel Macs use the pip or npm build — both ship a universal binary.
 - **CLI + server (npm)** — `npm install --global @zatsepin/jigor` (prebuilt binary,
   per-platform packages: linux x64/arm64, macos universal2 — Intel + Apple
   Silicon, windows x64).

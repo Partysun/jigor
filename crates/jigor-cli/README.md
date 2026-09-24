@@ -12,6 +12,11 @@ jigor ask [--model <id>] [--provider <p>]  # the same wire over stdin, no HTTP l
 jigor models                               # provider x model pairs
 ```
 
+The installed command is `jigor`. `cargo install` builds against the ONNX
+Runtime prebuilts, available for linux x64/arm64, macOS Apple Silicon and
+Windows x64; on Intel Macs use the prebuilt universal binary instead
+(`uvx jigor`, `pip install jigor` or `npm install --global @zatsepin/jigor`).
+
 Model aliases: `von`, `laya`, `jev`, `jev-latest`. The local ONNX models
 download to `~/.cache/huggingface` on first use; set `OPENROUTER_API_KEY`
 for the remote `jev` backend.
