@@ -13,15 +13,15 @@ default-members = ["crates/*"]
 resolver = "2"
 
 [workspace.package]
-version = "0.1.3"
+version = "0.1.4"
 authors = ["Iurii Zatsepin (https://zatsepin.dev)"]
 edition = "2024"
 license = "Apache-2.0"
 repository = "https://github.com/Partysun/jigor"
 
 [workspace.dependencies]
-jigor = { path = "crates/jigor", version = "0.1.3", default-features = false }
-jigor-cli = { path = "crates/jigor-cli", version = "0.1.3" }
+jigor = { path = "crates/jigor", version = "0.1.4", default-features = false }
+jigor-cli = { path = "crates/jigor-cli", version = "0.1.4" }
 # ort defaults to tls-native (OpenSSL); keep every other default but use
 # its rustls TLS so no build needs the openssl native stack. CUDA is
 # currently off in the release build (see JIGOR_DEVICE; re-add "cuda" to
