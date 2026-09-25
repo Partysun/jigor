@@ -451,20 +451,11 @@ impl Backend for VonBackend {
             let temp = q.temperature.or(global_temp);
             let answer: Answer = match q.kind.as_str() {
                 "noul" => {
-                    let criteria = q
-                        .criteria
-                        .as_ref()
-                        .and_then(serde_json::Value::as_object)
-                        .map(|m| {
-                            let mut h = HashMap::new();
-                            for (k, v) in m {
-                                if let Some(s) = v.as_str() {
-                                    h.insert(k.clone(), s.to_string());
-                                }
-                            }
-                            h
-                        });
-                    let p = self.judge(&text, &q.instructions, criteria.as_ref(), temp)?;
+                    let sides =
+                        crate::noul_sides(q.criteria.as_ref()).map_err(|e| Error::Wire {
+                            message: format!("question {}: {e}", q.id),
+                        })?;
+                    let p = self.judge(&text, &q.instructions, Some(&sides), temp)?;
                     Answer::Noul { probability: p }
                 }
                 "choice" => {

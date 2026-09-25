@@ -10,6 +10,9 @@
 //!   marker_mask    [batch, markers] bool  (padded to the widest question)
 //!   qtype          [batch]         i64    0=choice, 1=score, 2=noul
 //!
+//! Only qtypes 0 and 1 ever reach the export: `noul` is asked on the choice
+//! path (see `noul_choice_options`).
+//!
 //! Output: logits [batch, markers]; softmax each question's slice, then
 //! calibrate with the checkpoint's fitted per-(type, option count) temps.
 //! Mirrors `laya/onnx_agent.py` + `laya/common.py` in the upstream repo:
@@ -23,7 +26,7 @@ use ndarray::Array2;
 use std::collections::HashMap;
 use tokenizers::Tokenizer;
 
-use crate::{Answer, Backend, Error, Question, Result, init_session, state_text};
+use crate::{Answer, Backend, Error, Question, Result, init_session, py_json, render_criterion};
 use serde_json::Value;
 
 const LAYA_MAX_LEN: usize = 512;
@@ -79,48 +82,41 @@ fn clamp_temperature(t: f32) -> f32 {
     t.clamp(LAYA_TEMP_MIN, LAYA_TEMP_MAX)
 }
 
-/// Python `json.dumps(v, separators=(", ", ": "), ensure_ascii=False)` —
-/// structural separators keep their spaces, strings are JSON-escaped.
-fn py_json(v: &Value) -> String {
-    match v {
-        Value::String(s) => serde_json::to_string(s).unwrap_or_default(),
-        Value::Object(m) => {
-            let mut parts = Vec::with_capacity(m.len());
-            for (k, val) in m {
-                parts.push(format!(
-                    "{}: {}",
-                    serde_json::to_string(k).unwrap_or_default(),
-                    py_json(val)
-                ));
-            }
-            format!("{{{}}}", parts.join(", "))
-        }
-        Value::Array(items) => {
-            let parts: Vec<String> = items.iter().map(py_json).collect();
-            format!("[{}]", parts.join(", "))
-        }
-        other => serde_json::to_string(other).unwrap_or_default(),
-    }
-}
-
-/// Render one criterion value as text (upstream `render_criterion`):
-/// strings pass through; structured values read as compact JSON.
-fn render_criterion(v: &Value) -> String {
-    match v {
+/// State as text for the laya head (upstream `serialize_state`): a string
+/// passes through untouched, any other JSON value dumps like Python's
+/// `json.dumps(state, ensure_ascii=False)`.
+fn serialize_state(state: &Value) -> String {
+    match state {
         Value::String(s) => s.clone(),
         other => py_json(other),
     }
 }
 
-/// The `false:`/`true:` half of a noul question (upstream `_resolve_noul_labels`
-/// with the default label map).
-fn noul_side(criteria: Option<&Value>, key: &str, fallback: &str) -> String {
-    match criteria.and_then(|c| c.get(key)) {
-        Some(v) if !matches!(v, Value::Null) && !matches!(v, Value::String(s) if s.is_empty()) => {
-            render_criterion(v)
-        }
-        _ => fallback.to_string(),
-    }
+/// `noul` rendered the way upstream's README tells you to ask it on this
+/// checkpoint ([laya#156](https://github.com/NandhaKishorM/laya/issues/156)):
+/// a two-option `choice` with the neutral keys `A`/`B` and the yes/no
+/// wording as descriptions, so the `false:`/`true:` label pair can't
+/// dominate the answer. Option A is the yes side, which keeps `p[0]` the
+/// probability of yes.
+///
+/// A side the caller spelled out in `criteria` wins; otherwise the wording
+/// echoes the question (`yes — <instructions>`), the way von's no-criteria
+/// hypotheses do — the upstream default "yes, the statement holds" carries
+/// none of the question's vocabulary and this checkpoint reads it as "no".
+fn noul_choice_options(criteria: Option<&Value>, instructions: &str) -> AnyhowResult<Vec<String>> {
+    let sides = crate::noul_sides(criteria).map_err(anyhow::Error::msg)?;
+    let inst = instructions.trim();
+    let (default_yes, default_no) = if inst.is_empty() {
+        (
+            "yes, the statement holds".to_string(),
+            "no, the statement does not hold".to_string(),
+        )
+    } else {
+        (format!("yes — {inst}"), format!("no — {inst}"))
+    };
+    let yes = sides.get("true").cloned().unwrap_or(default_yes);
+    let no = sides.get("false").cloned().unwrap_or(default_no);
+    Ok(vec![format!("A: {yes}"), format!("B: {no}")])
 }
 
 /// One Laya question ready for a batched forward pass: (qtype, ids, markers).
@@ -254,9 +250,9 @@ impl LayaBackend {
     }
 
     /// Option texts in label-index order, upstream `render_options`.
-    /// `noul` semantic order is always [false, true]; score levels are
-    /// positional ("level 0", "level 1", ...); choice keys carry their
-    /// description ("key: desc" unless the description is empty/null).
+    /// Score levels are positional ("level 0", "level 1", ...); choice keys
+    /// carry their description ("key: desc" unless the description is
+    /// empty/null). `noul` is asked through `noul_choice_options` instead.
     fn render_options(&self, kind: &str, criteria: Option<&Value>) -> AnyhowResult<Vec<String>> {
         match kind {
             "choice" => {
@@ -293,16 +289,6 @@ impl LayaBackend {
                     .map(|(i, c)| format!("level {i}: {}", render_criterion(c)))
                     .collect())
             }
-            "noul" => Ok(vec![
-                format!(
-                    "false: {}",
-                    noul_side(criteria, "false", "no, the statement does not hold")
-                ),
-                format!(
-                    "true: {}",
-                    noul_side(criteria, "true", "yes, the statement holds")
-                ),
-            ]),
             other => bail!("laya question: unknown kind {other}"),
         }
     }
@@ -354,7 +340,8 @@ impl LayaBackend {
             opt_budget = LAYA_HEAD_MAX_LEN as isize
                 - opt_ids.iter().map(|o| o.len() as isize).sum::<isize>();
         }
-        head_ids.truncate(opt_budget.max(0) as usize + 8);
+        // upstream: `head_ids[:max(8, opt_budget)]`
+        head_ids.truncate(opt_budget.max(8) as usize);
 
         let mut ids = vec![self.cls_id];
         ids.extend(head_ids);
@@ -447,7 +434,8 @@ impl LayaBackend {
 /// scores exactly two option markers per question, so a `choice` with
 /// more than two options is folded out of the box into one 2-option
 /// ballot per pair and the wins are aggregated back into the same choice
-/// distribution.
+/// distribution, while a `noul` is asked as that same 2-option ballot with
+/// neutral keys (see `noul_choice_options`).
 impl Backend for LayaBackend {
     fn answers(
         &mut self,
@@ -463,11 +451,23 @@ impl Backend for LayaBackend {
             pairs: Vec<(usize, usize, usize)>,
         }
 
-        let text = state_text(state)?;
+        let text = serialize_state(state);
         let mut items: Vec<LayaItem> = Vec::with_capacity(questions.len());
         let mut plans: Vec<Plan> = Vec::with_capacity(questions.len());
         for q in questions {
-            let options = self.render_options(&q.kind, q.criteria.as_ref())?;
+            // `noul` rides the choice path end to end: neutral A/B options,
+            // "choice question:" head, qtype 0 and the choice:2 calibration
+            // bucket; `Plan.kind` keeps "noul" so the answer arm reports it.
+            let seq_kind: &str = if q.kind == "noul" {
+                "choice"
+            } else {
+                q.kind.as_str()
+            };
+            let options = if q.kind == "noul" {
+                noul_choice_options(q.criteria.as_ref(), &q.instructions)?
+            } else {
+                self.render_options(&q.kind, q.criteria.as_ref())?
+            };
             let k = options.len();
             let override_temp = q.temperature.or(global_temp);
             let pair_scale = match override_temp {
@@ -499,10 +499,11 @@ impl Backend for LayaBackend {
                 });
                 continue;
             }
-            let (ids, markers) = self.build_sequence(&text, &q.kind, &q.instructions, &options);
+            let (ids, markers) = self.build_sequence(&text, seq_kind, &q.instructions, &options);
             let mk = markers.len();
             // this export scores exactly two option markers per question;
-            // `score` keeps its (2-level) ordinal semantics, `noul` is fixed
+            // `score` keeps its (2-level) ordinal semantics, `noul` arrives
+            // as its fixed 2-option ballot
             if mk != 2 {
                 return Err(Error::Wire {
                     message: format!(
@@ -513,12 +514,15 @@ impl Backend for LayaBackend {
             }
             let scale = match override_temp {
                 Some(t) => t,
-                None => {
-                    temperature_scale(&q.kind, mk, &self.temperature, &self.temperature_by_options)
-                }
+                None => temperature_scale(
+                    seq_kind,
+                    mk,
+                    &self.temperature,
+                    &self.temperature_by_options,
+                ),
             };
             items.push(LayaItem {
-                qtype: laya_qtype(&q.kind),
+                qtype: laya_qtype(seq_kind),
                 ids,
                 markers,
             });
@@ -595,8 +599,11 @@ impl Backend for LayaBackend {
                             legend,
                         }
                     }
+                    // `noul` rode the neutral ballot: option A is "yes",
+                    // so p[0] is the probability of yes (no confidence —
+                    // the wire only carries `noul`)
                     _ => Answer::Noul {
-                        probability: crate::round4(p[1]),
+                        probability: crate::round4(p[0]),
                     },
                 }
             };
@@ -668,25 +675,58 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn laya_py_json_matches_python_separators() {
-        assert_eq!(py_json(&json!("plain text")), "\"plain text\"");
-        assert_eq!(py_json(&json!(2)), "2");
-        // object key order follows serde_json's sorted map, so compare
-        // semantics: the rendered rubric must round-trip to the same JSON
-        let v = json!({"what": "Critical", "examples": ["OOM killer", 2]});
-        let rendered = py_json(&v);
-        assert!(rendered.contains("\"what\": \"Critical\""));
-        assert!(rendered.contains("\"examples\": [\"OOM killer\", 2]"));
-        let parsed: Value = serde_json::from_str(&rendered).unwrap();
-        assert_eq!(parsed, v);
+    async fn laya_serialize_state_strings_and_objects() {
+        // a string state reaches the head verbatim (the CLI sends prose)
+        assert_eq!(serialize_state(&json!("Disk full")), "Disk full");
+        // any other JSON value dumps like Python's json.dumps: single line,
+        // ": " between key and value (unlike the pretty printer von uses)
+        let obj = json!({"error": "Disk volume /var/log at 98% capacity."});
+        let text = serialize_state(&obj);
         assert_eq!(
-            render_criterion(&json!("invoices, payments")),
-            "invoices, payments"
+            text,
+            "{\"error\": \"Disk volume /var/log at 98% capacity.\"}"
         );
+        assert_eq!(serde_json::from_str::<Value>(&text).unwrap(), obj);
+    }
+
+    #[tokio::test]
+    async fn laya_noul_rides_the_neutral_a_ballot() {
+        // no criteria: the wording echoes the question, so the options keep
+        // its vocabulary (a bare "the statement holds" reads as "no")
         assert_eq!(
-            render_criterion(&json!({"a": {"b": "c"}})),
-            "{\"a\": {\"b\": \"c\"}}"
+            noul_choice_options(None, "Is this review positive?").unwrap(),
+            vec![
+                "A: yes — Is this review positive?".to_string(),
+                "B: no — Is this review positive?".to_string()
+            ]
         );
+        // without any instructions there is nothing to echo: upstream default
+        assert_eq!(
+            noul_choice_options(None, "   ").unwrap(),
+            vec![
+                "A: yes, the statement holds".to_string(),
+                "B: no, the statement does not hold".to_string()
+            ]
+        );
+        // criteria sides win over the synthesized wording, yes first
+        // regardless of key order in the payload
+        let opts = noul_choice_options(
+            Some(&json!({
+                "false": "the review is negative",
+                "true": "the review is positive"
+            })),
+            "Is this review positive?",
+        )
+        .unwrap();
+        assert_eq!(
+            opts,
+            vec![
+                "A: the review is positive".to_string(),
+                "B: the review is negative".to_string()
+            ]
+        );
+        // a non-true/false key is a wire error, not a silent fallback
+        assert!(noul_choice_options(Some(&json!({"yes": "y"})), "x").is_err());
     }
 
     #[tokio::test]

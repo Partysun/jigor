@@ -412,6 +412,101 @@ pub fn state_text(state: &Value) -> Result<String> {
         },
     }
 }
+
+/// Python `json.dumps(v, ensure_ascii=False)` with the default separators
+/// (", ", ": ") — structural separators keep their spaces, strings are
+/// JSON-escaped. Upstream's state/criterion rendering for laya.
+pub(crate) fn py_json(v: &Value) -> String {
+    match v {
+        Value::String(s) => serde_json::to_string(s).unwrap_or_default(),
+        Value::Object(m) => {
+            let mut parts = Vec::with_capacity(m.len());
+            for (k, val) in m {
+                parts.push(format!(
+                    "{}: {}",
+                    serde_json::to_string(k).unwrap_or_default(),
+                    py_json(val)
+                ));
+            }
+            format!("{{{}}}", parts.join(", "))
+        }
+        Value::Array(items) => {
+            let parts: Vec<String> = items.iter().map(py_json).collect();
+            format!("[{}]", parts.join(", "))
+        }
+        other => serde_json::to_string(other).unwrap_or_default(),
+    }
+}
+
+/// Render one criterion value as text (upstream `render_criterion`):
+/// strings pass through; structured values read as JSON text.
+pub(crate) fn render_criterion(v: &Value) -> String {
+    match v {
+        Value::String(s) => s.clone(),
+        other => py_json(other),
+    }
+}
+
+/// Validate a `noul` question's `criteria` for the wire: an object keyed by
+/// `true`/`false` (matched case-insensitively, canonicalized to lowercase),
+/// anything else rejected; `null`/absent stays absent. Lets the CLI accept
+/// `{"True": ...}` without ever handing a local backend a key it would drop.
+pub fn normalize_noul_criteria(
+    criteria: Option<&Value>,
+) -> std::result::Result<Option<Value>, String> {
+    let Some(c) = criteria.filter(|c| !c.is_null()) else {
+        return Ok(None);
+    };
+    let m = c
+        .as_object()
+        .ok_or_else(|| "noul \"criteria\" must be an object".to_string())?;
+    let mut out = Map::new();
+    let mut seen: HashMap<&str, &str> = HashMap::new();
+    for (key, val) in m {
+        let side = if key.eq_ignore_ascii_case("true") {
+            "true"
+        } else if key.eq_ignore_ascii_case("false") {
+            "false"
+        } else {
+            return Err(format!(
+                "noul criteria key \"{key}\" must be \"true\" or \"false\""
+            ));
+        };
+        if let Some(prev) = seen.insert(side, key.as_str()) {
+            return Err(format!(
+                "noul criteria has both \"{prev}\" and \"{key}\" keys"
+            ));
+        }
+        out.insert(side.to_string(), val.clone());
+    }
+    Ok(Some(Value::Object(out)))
+}
+
+/// The rendered `true`/`false` halves of a noul question's criteria, as the
+/// local backends read them: keys canonicalized like
+/// `normalize_noul_criteria`, structured values rendered as text, empty and
+/// null sides dropped (they fall back to the caller's wording).
+pub(crate) fn noul_sides(
+    criteria: Option<&Value>,
+) -> std::result::Result<HashMap<String, String>, String> {
+    let mut out = HashMap::new();
+    let Some(normalized) = normalize_noul_criteria(criteria)? else {
+        return Ok(out);
+    };
+    if let Some(m) = normalized.as_object() {
+        for (side, val) in m {
+            match val {
+                Value::Null => {}
+                Value::String(s) if s.is_empty() => {}
+                other => {
+                    out.insert(side.clone(), render_criterion(other));
+                }
+            }
+        }
+    }
+    Ok(out)
+}
+
 /// One way to ask every backend: `noul`/`choice`/`score` questions in,
 /// typed answers out. Identical on von, laya and any OpenRouter System One
 /// model — there is no per-model sugar.
@@ -869,6 +964,71 @@ mod tests {
         let text = state_text(&obj).unwrap();
         let parsed: Value = serde_json::from_str::<Value>(&text).unwrap();
         assert_eq!(parsed, obj);
+    }
+
+    #[tokio::test]
+    async fn py_json_matches_python_separators() {
+        assert_eq!(py_json(&json!("plain text")), "\"plain text\"");
+        assert_eq!(py_json(&json!(2)), "2");
+        // object key order follows serde_json's sorted map, so compare
+        // semantics: the rendered rubric must round-trip to the same JSON
+        let v = json!({"what": "Critical", "examples": ["OOM killer", 2]});
+        let rendered = py_json(&v);
+        assert!(rendered.contains("\"what\": \"Critical\""));
+        assert!(rendered.contains("\"examples\": [\"OOM killer\", 2]"));
+        let parsed: Value = serde_json::from_str(&rendered).unwrap();
+        assert_eq!(parsed, v);
+        assert_eq!(
+            render_criterion(&json!("invoices, payments")),
+            "invoices, payments"
+        );
+        assert_eq!(
+            render_criterion(&json!({"a": {"b": "c"}})),
+            "{\"a\": {\"b\": \"c\"}}"
+        );
+    }
+
+    #[tokio::test]
+    async fn normalize_noul_criteria_canonicalizes_and_rejects() {
+        // absent and null criteria stay absent
+        assert!(normalize_noul_criteria(None).unwrap().is_none());
+        assert!(
+            normalize_noul_criteria(Some(&Value::Null))
+                .unwrap()
+                .is_none()
+        );
+        // keys are case-insensitive and canonicalized to lowercase
+        let got = normalize_noul_criteria(Some(&json!({"True": "yes", "FALSE": "no"})))
+            .unwrap()
+            .unwrap();
+        assert_eq!(got, json!({"true": "yes", "false": "no"}));
+        // any other key, or a non-object, is a wire error
+        let err = normalize_noul_criteria(Some(&json!({"yes": "y"}))).unwrap_err();
+        assert!(
+            err.contains("\"yes\" must be \"true\" or \"false\""),
+            "{err}"
+        );
+        let err = normalize_noul_criteria(Some(&json!(["true", "false"]))).unwrap_err();
+        assert!(err.contains("must be an object"), "{err}");
+        // both spellings of one side collapse into an error, not an override
+        let err = normalize_noul_criteria(Some(&json!({"true": "a", "True": "b"}))).unwrap_err();
+        assert!(err.contains("both \"True\" and \"true\""), "{err}");
+    }
+
+    #[tokio::test]
+    async fn noul_sides_renders_values_and_skips_empty() {
+        let sides = noul_sides(Some(&json!({"true": "the disk is full", "false": ""}))).unwrap();
+        assert_eq!(sides.len(), 1);
+        assert_eq!(sides.get("true").unwrap(), "the disk is full");
+        // null and absent sides are omitted for the caller's fallback
+        let sides = noul_sides(Some(&json!({"false": null}))).unwrap();
+        assert!(sides.is_empty());
+        assert!(noul_sides(None).unwrap().is_empty());
+        // structured values render as JSON text instead of being dropped
+        let sides = noul_sides(Some(&json!({"true": {"n": 2}}))).unwrap();
+        assert_eq!(sides.get("true").unwrap(), "{\"n\": 2}");
+        // bad keys surface instead of silently vanishing
+        assert!(noul_sides(Some(&json!({"maybe": "x"}))).is_err());
     }
 
     #[tokio::test]
