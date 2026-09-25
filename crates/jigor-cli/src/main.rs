@@ -330,7 +330,7 @@ fn parse_questions(v: &Value) -> std::result::Result<Vec<Question>, String> {
         if kind != "noul" && kind != "choice" && kind != "score" {
             return Err(format!("question \"{qid}\" has unknown type \"{kind}\""));
         }
-        match kind {
+        let criteria = match kind {
             "choice" => {
                 let c = q.get("criteria");
                 if c.is_none() {
@@ -358,6 +358,7 @@ fn parse_questions(v: &Value) -> std::result::Result<Vec<Question>, String> {
                     }
                     None => {}
                 }
+                c.cloned()
             }
             "score" => {
                 let c = q.get("criteria");
@@ -377,15 +378,19 @@ fn parse_questions(v: &Value) -> std::result::Result<Vec<Question>, String> {
                     Some(_) => return Err(format!("question \"{qid}\" needs criteria list")),
                     None => {}
                 }
+                c.cloned()
             }
-            _ => {}
-        }
+            // noul criteria must key on true/false: canonicalize the case
+            // here so no backend ever sees a key it would drop on the floor
+            "noul" => jigor::normalize_noul_criteria(q.get("criteria"))
+                .map_err(|e| format!("question \"{qid}\": {e}"))?,
+            _ => q.get("criteria").cloned(),
+        };
         let instructions = q
             .get("instructions")
             .and_then(Value::as_str)
             .unwrap_or("")
             .to_string();
-        let criteria = q.get("criteria").cloned();
         let temperature = q
             .get("temperature")
             .and_then(Value::as_f64)
@@ -651,6 +656,36 @@ mod tests {
         assert_eq!(qs.iter().find(|q| q.id == "q").unwrap().kind, "noul");
         assert_eq!(qs.iter().find(|q| q.id == "typed").unwrap().kind, "noul");
         assert_eq!(qs.iter().find(|q| q.id == "s").unwrap().kind, "score");
+    }
+
+    #[tokio::test]
+    async fn parse_questions_normalizes_noul_criteria() {
+        // keys arrive in any case, leave canonicalized for every backend
+        let v = json!({
+            "is_bug": {
+                "type": "noul",
+                "instructions": "Is it a bug?",
+                "criteria": {"True": "a defect", "False": "working as intended"}
+            }
+        });
+        let qs = parse_questions(&v).unwrap();
+        assert_eq!(
+            qs[0].criteria.as_ref().unwrap(),
+            &json!({"true": "a defect", "false": "working as intended"})
+        );
+
+        // no criteria (and null criteria) stay absent
+        let v = json!({"is_bug": {"type": "noul", "instructions": "Is it a bug?"}});
+        assert!(parse_questions(&v).unwrap()[0].criteria.is_none());
+        let v = json!({"is_bug": {"type": "noul", "instructions": "x", "criteria": null}});
+        assert!(parse_questions(&v).unwrap()[0].criteria.is_none());
+
+        // anything but true/false, or a non-object, is a payload error
+        let v = json!({"is_bug": {"type": "noul", "instructions": "x", "criteria": {"yes": "y"}}});
+        let err = parse_questions(&v).unwrap_err();
+        assert!(err.starts_with("question \"is_bug\":"), "{err}");
+        let v = json!({"is_bug": {"type": "noul", "instructions": "x", "criteria": ["a", "b"]}});
+        assert!(parse_questions(&v).is_err());
     }
 
     #[tokio::test]
