@@ -92,8 +92,11 @@ distribution — the same code, three ways to consume it:
   and its dependencies (hyper, tokio, ...) never enter consumer builds.
 - **CLI + server (cargo)** — `cargo install jigor-cli` installs the `jigor`
   binary: `jigor serve`, `jigor ask`, `jigor models`. Builds against the
-  ONNX Runtime prebuilts (linux x64/arm64, macOS Apple Silicon, windows x64);
-  on Intel Macs use the pip or npm build — both ship a universal binary.
+  ONNX Runtime prebuilts (linux x64/arm64, macOS Apple Silicon, windows x64).
+  On Intel Macs — where ort ships no prebuilts — the first install compiles
+  ONNX Runtime from source once (needs git, cmake, python3 + Xcode command
+  line tools; ~15–60 min, cached afterwards); set `ORT_LIB_PATH` to reuse an
+  existing ONNX Runtime build instead, or use the npm/pip universal binary.
 - **CLI + server (npm)** — `npm install --global @zatsepin/jigor` (prebuilt binary,
   per-platform packages: linux x64/arm64, macos universal2 — Intel + Apple
   Silicon, windows x64).
