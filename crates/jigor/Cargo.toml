@@ -25,6 +25,15 @@ serde_json.workspace = true
 http.workspace = true
 ureq.workspace = true
 
+# On the only target ort-sys lacks ONNX Runtime prebuilts for
+# (Intel Macs), disable ort-sys's own build-script linking/downloading —
+# build.rs takes over: it builds ONNX Runtime from source (or honors
+# ORT_LIB_PATH) and emits the link directives itself. Feature
+# unification scopes this to x86_64-apple-darwin builds only; every
+# other target keeps ort's normal prebuilt flow.
+[target.'cfg(all(target_os = "macos", target_arch = "x86_64"))'.dependencies]
+ort-sys = { workspace = true, features = ["disable-linking"] }
+
 [features]
 # default keeps the CUDA provider (dev/test/CLI builds); the wheel build
 # compiles with default-features=false for a CPU-only manylinux wheel

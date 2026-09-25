@@ -489,6 +489,7 @@ dependencies = [
  "http",
  "ndarray",
  "ort",
+ "ort-sys",
  "serde",
  "serde_json",
  "thiserror",

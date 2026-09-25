@@ -33,6 +33,10 @@ jigor-cli = { path = "crates/jigor-cli", version = "0.1.2" }
 # runtime only serves API 1..24. Requesting 27 panics at ORT init on
 # every mac build. The linux/windows prebuilts (ORT 1.28) accept 24 too.
 ort = { version = "2.0.0-rc.12", default-features = false, features = ["tls-rustls", "std", "ndarray", "tracing", "download-binaries", "copy-dylibs", "api-24"] }
+# ort-sys FFI crate: only to flip `disable-linking` for x86_64-apple-darwin
+# (see crates/jigor/build.rs — it takes over ONNX Runtime linking there
+# because ort-sys has no Intel mac prebuilts).
+ort-sys = "2.0.0-rc.12"
 tokenizers = "0.23.1"
 ndarray = "0.17"
 anyhow = "1.0"
