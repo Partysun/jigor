@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.1.4] - 2026-09-25
+
+Give pip and npm their own READMEs — the PyPI and npm pages were showing
+the crates-oriented CLI README.
+
+### Changed
+
+- new `README.pypi.md` for the PyPI page: `uvx`/`pip`/`pipx` install, the
+  `uvx jigor ask` quick start, a Python `requests` example against
+  `jigor serve`, and the platform matrix (macOS universal2 + Windows
+  wheels; Linux ships an sdist that builds the Rust binary — needs rustup)
+- new committed `npm/README.md` for the npm page (`npm i -g` / `npx`, the
+  per-platform packages, `jigor serve` + curl) — packed from the package
+  dir instead of copying the crates.io README at publish time
+
 ## [0.1.3] - 2026-09-25
 
 Ask `noul` on laya the way the checkpoint needs it — a neutral-key

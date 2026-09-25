@@ -31,5 +31,4 @@ Thumbs.db
 # --- Python build output ---
 /dist/
 
-# generated at publish time from crates/jigor-cli/README.md
-npm/README.md
+# npm/README.md is committed (npm page, kept separate from the pip/crates READMEs)

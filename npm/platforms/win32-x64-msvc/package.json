@@ -1,6 +1,6 @@
 {
   "name": "@zatsepin/jigor-win32-x64-msvc",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "jigor binary for windows x64",
   "os": [
     "win32"
