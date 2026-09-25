@@ -1,6 +1,6 @@
 {
   "name": "@zatsepin/jigor-darwin",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "jigor binary for macOS — universal2 fat binary (Intel x64 and Apple Silicon arm64)",
   "os": [
     "darwin"

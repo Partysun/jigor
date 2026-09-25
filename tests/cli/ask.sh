@@ -19,6 +19,7 @@ OUT=$("$JIGOR" models)
 grep -q "local" <<<"$OUT"
 grep -q "openrouter" <<<"$OUT"
 grep -q "typesafe/jev-1.13" <<<"$OUT"
+grep -q "jaredpalmer/kev-4b" <<<"$OUT"
 
 ### local ask via stdin returns the typed wire shape
 OUT=$("$JIGOR" ask <"$REQ")

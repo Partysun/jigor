@@ -1,6 +1,6 @@
 {
   "name": "@zatsepin/jigor-linux-x64-gnu",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "jigor binary for linux x64 (glibc)",
   "os": [
     "linux"

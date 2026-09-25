@@ -52,7 +52,7 @@ fn print_usage() {
     println!("jigor serve --host <ip> --port <port>     run the HTTP gateway (POST /v1/systemone)");
     println!("jigor ask [--model <id>] [--provider <p>]  ask the wire JSON piped on stdin");
     println!("jigor models                               list provider x model pairs");
-    println!("  model aliases: von, laya, jev, jev-latest     providers: local, openrouter");
+    println!("  model aliases: von, laya, jev, jev-latest, kev     providers: local, openrouter");
 }
 
 fn parse_args_from(argv: Vec<String>) -> Result<CliCommand> {
@@ -142,7 +142,7 @@ async fn main() -> Result<()> {
 fn run_models() -> Result<()> {
     println!("provider    model id          aliases");
     for (provider, model) in known_providers() {
-        let aliases: Vec<&'static str> = ["von", "laya", "jev", "jev-latest"]
+        let aliases: Vec<&'static str> = ["von", "laya", "jev", "jev-latest", "kev"]
             .iter()
             .filter(|a| alias_model(a) == model.as_str())
             .copied()

@@ -9,9 +9,9 @@ Decisions API.
 - HF `sevenreasons/von-onnx-fp16` (`model.onnx` 759M, `tokenizer/tokenizer.json` 3.5M)
 - HF `Mattepiu/laya-onnx` (`laya.onnx` fp32 — matches the python reference
   bit-for-bit; `int8/laya_int8.onnx` via `LAYA_ONNX_FILE`)
-- OpenRouter Decisions (`typesafe/jev-1.13` today) — any model there speaking
-  the same System One wire works; add it to `known_providers()` and nothing
-  else changes.
+- OpenRouter Decisions (`typesafe/jev-1.13`, `jaredpalmer/kev-4b`) — any model
+  there speaking the same System One wire works; add it to `known_providers()`
+  and nothing else changes.
 
 ## Usage as lib
 
@@ -22,7 +22,7 @@ in, typed answers out. Identical on von, laya and any OpenRouter model.
 [dependencies]
 jigor = { path = "../jigor" }                             # local checkout
 # jigor = { git = "https://github.com/Partysun/jigor" }   # from GitHub
-# jigor = "0.1.4"                                         # once published
+# jigor = "0.1.5"                                         # once published
 serde_json = { version = "1.0" }                          # Value, json!
 ```
 
@@ -88,7 +88,7 @@ match von.answers(&state, &questions, None) {
 One workspace, two crates (`crates/jigor` + `crates/jigor-cli`), one pip
 distribution — the same code, three ways to consume it:
 
-- **Library** — `jigor = { version = "0.1.4" }` in your crate (see
+- **Library** — `jigor = { version = "0.1.5" }` in your crate (see
   `Usage as lib`). Only the library target is compiled: the CLI/server code
   and its dependencies (hyper, tokio, ...) never enter consumer builds.
 - **CLI + server (cargo)** — `cargo install jigor-cli` installs the `jigor`
@@ -183,8 +183,9 @@ curl -X POST http://localhost:8000/v1/systemone \
 # {"model":"von-1.0.0","backend":"local","answers":{"requires_intervention":{"type":"noul","noul":0.2739}}}
 ```
 
-Route by provider + model pair — `typesafe/jev-1.13` (alias `jev`) goes to
-OpenRouter, `von-1.0.0` (alias `von`) stays local; unknown pairs are rejected.
+Route by provider + model pair — `typesafe/jev-1.13` (alias `jev`) and
+`jaredpalmer/kev-4b` (alias `kev`) go to OpenRouter, `von-1.0.0` (alias `von`)
+stays local; unknown pairs are rejected.
 Responses from the OpenRouter backend add `usage` (tokens + cost in USD) next
 to `answers`, so each `/v1/systemone` call reports what it cost.
 

@@ -148,6 +148,7 @@ pub use von::VonBackend;
 //   "laya-1.0.0"             -> local LayaBackend (this repo, ONNX)
 //   "typesafe/jev-1.13"      -> OpenRouter Decisions API (Jev), via ureq
 //   "~typesafe/jev-latest"   -> same remote backend, unpinned alias
+//   "jaredpalmer/kev-4b"     -> same remote backend (Kev)
 //
 // New backends add a branch in `backend_for`, an entry in `known_providers`
 // and an `impl Backend`; the wire shapes stay the same. Local backends can
@@ -712,6 +713,7 @@ pub fn backend_for(model: &str) -> std::result::Result<&'static str, String> {
         Ok("local")
     } else if model.starts_with("typesafe/")
         || model.starts_with("~typesafe/")
+        || model.starts_with("jaredpalmer/")
         || model.starts_with("openrouter/")
     {
         Ok("openrouter")
@@ -727,6 +729,7 @@ pub fn alias_model(model: &str) -> &str {
         "laya" => "laya-1.0.0",
         "jev" => "typesafe/jev-1.13",
         "jev-latest" => "~typesafe/jev-latest",
+        "kev" => "jaredpalmer/kev-4b",
         other => other,
     }
 }
@@ -789,6 +792,7 @@ pub fn known_providers() -> Vec<(String, String)> {
         ("local".to_string(), "von-1.0.0".to_string()),
         ("local".to_string(), "laya-1.0.0".to_string()),
         ("openrouter".to_string(), "typesafe/jev-1.13".to_string()),
+        ("openrouter".to_string(), "jaredpalmer/kev-4b".to_string()),
     ]
 }
 
@@ -833,6 +837,7 @@ mod tests {
         assert_eq!(backend_for("laya-int8").unwrap(), "local");
         assert_eq!(backend_for("typesafe/jev-1.13").unwrap(), "openrouter");
         assert_eq!(backend_for("~typesafe/jev-latest").unwrap(), "openrouter");
+        assert_eq!(backend_for("jaredpalmer/kev-4b").unwrap(), "openrouter");
         assert!(backend_for("gpt-4o").is_err());
     }
 
@@ -842,6 +847,7 @@ mod tests {
         assert_eq!(alias_model("laya"), "laya-1.0.0");
         assert_eq!(alias_model("jev"), "typesafe/jev-1.13");
         assert_eq!(alias_model("jev-latest"), "~typesafe/jev-latest");
+        assert_eq!(alias_model("kev"), "jaredpalmer/kev-4b");
         assert_eq!(alias_model("something-else"), "something-else");
     }
 

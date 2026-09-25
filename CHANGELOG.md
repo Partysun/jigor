@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.1.5] - 2026-09-26
+
+Every OpenRouter ask now reports what it cost — the token counts and billed
+USD from the Decisions response — and `jaredpalmer/kev-4b` joins as a second
+System One model on OpenRouter.
+
+### Added
+
+- `Asks.usage` (`Usage { input_tokens, output_tokens, cost }`) parsed from
+  the `usage` object every Decisions/SystemOne response carries; local
+  backends report `None`
+- `jigor ask` and `POST /v1/systemone` add an optional `usage` field to
+  their JSON output when the backend reports it
+- `jaredpalmer/kev-4b` (alias `kev`) on the OpenRouter backend:
+  `known_providers()`, routing (`backend_for`) and `jigor models` include it
+
 ## [0.1.4] - 2026-09-25
 
 Give pip and npm their own READMEs — the PyPI and npm pages were showing
