@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.1.3] - 2026-09-25
+
+Ask `noul` on laya the way the checkpoint needs it — a neutral-key
+two-option choice instead of the `false:`/`true:` label pair
+([laya#156](https://github.com/NandhaKishorM/laya/issues/156)) — and
+validate `noul` criteria once on the wire.
+
+### Fixes
+
+- laya `noul` now rides the choice path: neutral `A`/`B` keys with the
+  yes/no wording as descriptions, the `choice question:` head and the
+  `choice:2` calibration bucket. Option A is yes, so `p[0]` is the
+  probability of yes; a `criteria` side wins when given, otherwise the
+  wording echoes the instructions. Positive input no longer comes back
+  0.0 (review probe: 0.0 before, 0.94 after; 9 of 10 labelled cases
+  correct, was 7)
+- laya serializes non-string state with upstream `json.dumps` semantics
+  (it was pretty-printed) and truncates the instruction head to
+  `max(8, opt_budget)` instead of `opt_budget + 8`
+- `noul` criteria are validated where the payload enters: keys must be
+  `true`/`false` (case-insensitive, canonicalized), anything else is a
+  payload error instead of a silently dropped side
+- von and laya render non-string `noul` criteria values as text instead
+  of dropping them
+
 ## [0.1.2] - 2026-09-25
 
 Fix the ONNX Runtime API mismatch that panicked every macOS build at
