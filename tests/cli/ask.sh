@@ -55,6 +55,10 @@ d = json.load(sys.stdin)
 assert d['backend'] == 'openrouter', d
 assert d['model'] == 'typesafe/jev-1.13', d
 assert d['answers']['is_bug']['type'] == 'noul', d
+u = d['usage']
+assert u['input_tokens'] > 0, u
+assert u['output_tokens'] > 0, u
+assert u['cost'] >= 0, u
 "
 fi
 

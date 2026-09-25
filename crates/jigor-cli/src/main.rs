@@ -25,7 +25,7 @@ use hyper_util::rt::{TokioExecutor, TokioIo};
 use hyper_util::server::conn::auto;
 use jigor::{
     Answer, Asks, Backend, LayaBackend, OpenRouterBackend, Question, VonBackend, alias_model,
-    answer_to_json, known_providers, local_kind, resolve_model,
+    answer_to_json, known_providers, local_kind, resolve_model, usage_to_json,
 };
 use serde_json::{Map, Value, json};
 use std::collections::HashMap;
@@ -243,19 +243,26 @@ fn process_payload(
         .map(|t| t as f32);
 
     let backend = resolved_provider.clone();
-    let answers = match resolved_provider.as_str() {
-        "local" => run_local(&resolved_model, &state, &questions, global_temp),
+    let (answers, usage) = match resolved_provider.as_str() {
+        "local" => (
+            run_local(&resolved_model, &state, &questions, global_temp),
+            None,
+        ),
         "openrouter" => {
             let remote = OpenRouterBackend::for_model(&resolved_model);
-            remote
-                .ask(&state, &questions, global_temp)
-                .map(|asks| asks.answers)
+            match remote.ask(&state, &questions, global_temp) {
+                Ok(asks) => (Ok(asks.answers), asks.usage),
+                Err(e) => (Err(e), None),
+            }
         }
-        other => Err(jigor::Error::internal(format!(
-            "no backend for provider \"{other}\" (see `jigor models`)"
-        ))),
-    }
-    .map_err(|e| PayloadError::Backend {
+        other => (
+            Err(jigor::Error::internal(format!(
+                "no backend for provider \"{other}\" (see `jigor models`)"
+            ))),
+            None,
+        ),
+    };
+    let answers = answers.map_err(|e| PayloadError::Backend {
         kind: if backend == "local" {
             BackendKind::Local
         } else {
@@ -267,7 +274,25 @@ fn process_payload(
         model: resolved_model,
         backend,
         answers,
+        usage,
     })
+}
+
+/// Wire JSON of one response: model, backend, answers, and — for remote
+/// backends that report it — tokens and cost (USD) under `usage`.
+fn asks_to_json(asks: Asks) -> Value {
+    let mut wire = Map::new();
+    for (qid, answer) in asks.answers {
+        wire.insert(qid.clone(), answer_to_json(&answer));
+    }
+    let mut out = Map::new();
+    out.insert("model".to_string(), Value::String(asks.model));
+    out.insert("backend".to_string(), Value::String(asks.backend));
+    out.insert("answers".to_string(), Value::Object(wire));
+    if let Some(usage) = asks.usage {
+        out.insert("usage".to_string(), usage_to_json(&usage));
+    }
+    Value::Object(out)
 }
 
 /// `jigor ask` — run one wire request (JSON on stdin) through the chosen
@@ -289,12 +314,7 @@ fn run_ask(model_hint: Option<String>, provider_hint: Option<String>) -> Result<
         run_local,
     )
     .map_err(|e| anyhow::anyhow!("{e}"))?;
-    let mut wire = Map::new();
-    for (qid, answer) in asks.answers {
-        wire.insert(qid.clone(), answer_to_json(&answer));
-    }
-    let out = json!({"model": asks.model, "backend": asks.backend, "answers": wire});
-    println!("{}", serde_json::to_string(&out)?);
+    println!("{}", serde_json::to_string(&asks_to_json(asks))?);
     Ok(())
 }
 
@@ -510,16 +530,7 @@ async fn handle_systemone(
         }
     };
     match process_payload(&payload, None, None, run_local) {
-        Ok(asks) => {
-            let mut wire = Map::new();
-            for (qid, answer) in asks.answers {
-                wire.insert(qid.clone(), answer_to_json(&answer));
-            }
-            json_response(
-                StatusCode::OK,
-                &json!({"model": asks.model, "backend": asks.backend, "answers": wire}),
-            )
-        }
+        Ok(asks) => json_response(StatusCode::OK, &asks_to_json(asks)),
         Err(PayloadError::Invalid(msg)) => error_response(StatusCode::BAD_REQUEST, &msg),
         Err(PayloadError::Backend {
             kind: BackendKind::Local,

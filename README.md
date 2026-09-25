@@ -62,7 +62,8 @@ Only have a model id? `jigor::ask` resolves aliases and the provider for you:
 ```rust
 let asks = jigor::ask("jev", &state, &questions, None)?;  // OpenRouter jev
 let asks = jigor::ask("laya", &state, &questions, None)?; // local laya
-// Asks { model, backend, answers }
+// Asks { model, backend, answers, usage }
+// usage: tokens + billed cost (USD) on remote asks, None for local backends
 ```
 
 Errors are one type — `jigor::Error` (carried by
@@ -162,6 +163,10 @@ jigor ask --provider openrouter --model jev < request.json
 jigor ask --model jev < request.json          # provider inferred from the id
 ```
 
+Remote responses carry a `usage` object — the request's token counts and
+billed cost in USD (`{"input_tokens":476,"output_tokens":70,"cost":0.000019992}`);
+local responses omit it.
+
 ```bash
 curl -X POST http://localhost:8000/v1/systemone \
   -H "Content-Type: application/json" \
@@ -180,6 +185,8 @@ curl -X POST http://localhost:8000/v1/systemone \
 
 Route by provider + model pair — `typesafe/jev-1.13` (alias `jev`) goes to
 OpenRouter, `von-1.0.0` (alias `von`) stays local; unknown pairs are rejected.
+Responses from the OpenRouter backend add `usage` (tokens + cost in USD) next
+to `answers`, so each `/v1/systemone` call reports what it cost.
 
 Also: `GET /healthz` returns `{"status":"ok"}`.
 

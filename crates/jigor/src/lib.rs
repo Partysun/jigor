@@ -139,6 +139,7 @@ pub use von::VonBackend;
 //     "<id>": { "type": "noul"|"choice"|"score", "instructions": "...", "criteria": {...} }
 //   }
 //   -> answers: { "<id>": {"type": ..., "noul"|"choice"|"score"|... } }
+//      usage:   { "input_tokens": .., "output_tokens": .., "cost": .. }  (remote only)
 //
 // Pick a backend by model id (`backend_for`), so switching models or fanning
 // out to several at once is a matter of naming the model:
@@ -375,6 +376,40 @@ pub fn answer_from_json(v: &Value, hint: &str) -> Result<Answer> {
     }
 }
 
+/// Token counts and billed cost (USD) for one remote ask, as reported by
+/// OpenRouter's `usage` object. Local backends have no billing, so `Asks`
+/// carries `None` for them.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Usage {
+    pub input_tokens: u64,
+    pub output_tokens: u64,
+    /// Billed cost in USD for this request, as reported by the provider.
+    pub cost: f64,
+}
+
+/// Wire JSON of one usage record — OpenRouter's `usage` shape.
+pub fn usage_to_json(u: &Usage) -> Value {
+    json!({"input_tokens": u.input_tokens, "output_tokens": u.output_tokens, "cost": u.cost})
+}
+
+/// Parse the `usage` object of a remote response: token counts and billed
+/// cost in USD. An absent or non-object `usage` yields `None`; missing
+/// members default to 0 so partial reports still surface what was counted.
+pub fn usage_from_wire(wire: &Value) -> Option<Usage> {
+    let usage = wire.get("usage")?.as_object()?;
+    Some(Usage {
+        input_tokens: usage
+            .get("input_tokens")
+            .and_then(Value::as_u64)
+            .unwrap_or(0),
+        output_tokens: usage
+            .get("output_tokens")
+            .and_then(Value::as_u64)
+            .unwrap_or(0),
+        cost: usage.get("cost").and_then(Value::as_f64).unwrap_or(0.0),
+    })
+}
+
 /// Parse a whole `{"answers": {...}}` response against the questions asked.
 /// Works for OpenRouter Decisions responses and for any local responder
 /// that follows the same wire shape.
@@ -524,6 +559,9 @@ pub struct Asks {
     /// Resolved provider name ("local" | "openrouter").
     pub backend: String,
     pub answers: HashMap<String, Answer>,
+    /// Tokens and cost (USD) reported by the remote backend; `None` for
+    /// local backends and when the response carries no `usage`.
+    pub usage: Option<Usage>,
 }
 
 /// Remote System One backend: the OpenRouter Decisions API over the tiny
@@ -541,6 +579,19 @@ pub struct OpenRouterBackend {
     pub timeout_secs: u32,
 }
 
+/// Turn a non-OK remote payload into `Error::Remote` with the upstream
+/// `error.message` when present.
+fn remote_error(payload: &Value, status: StatusCode) -> Error {
+    let message = payload
+        .get("error")
+        .and_then(Value::as_object)
+        .and_then(|e| e.get("message"))
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .to_string();
+    Error::Remote { status, message }
+}
+
 impl OpenRouterBackend {
     /// Bind to an OpenRouter model id. `OPENROUTER_API_KEY` (required at
     /// ask time), `OPENROUTER_BASE_URL` (defaults to the Decisions API),
@@ -556,6 +607,13 @@ impl OpenRouterBackend {
                 .and_then(|s| s.parse::<u32>().ok())
                 .unwrap_or(30),
         }
+    }
+
+    fn agent(&self) -> Agent {
+        Agent::config_builder()
+            .timeout_global(Some(Duration::from_secs(self.timeout_secs.max(1) as u64)))
+            .build()
+            .into()
     }
 
     /// The wire request body (pure, unit-tested).
@@ -598,10 +656,7 @@ impl OpenRouterBackend {
             Err(e) => return Err(Error::Serialization(e)),
         };
 
-        let agent: Agent = Agent::config_builder()
-            .timeout_global(Some(Duration::from_secs(self.timeout_secs.max(1) as u64)))
-            .build()
-            .into();
+        let agent = self.agent();
         let req = agent
             .post(self.base_url.clone())
             .header("Authorization", format!("Bearer {}", self.api_key))
@@ -617,17 +672,7 @@ impl OpenRouterBackend {
             Err(_) => json!({}),
         };
         if status != StatusCode::OK {
-            let message = payload
-                .get("error")
-                .and_then(Value::as_object)
-                .map(|e| {
-                    e.get("message")
-                        .and_then(Value::as_str)
-                        .unwrap_or("")
-                        .to_string()
-                })
-                .unwrap_or("".to_string());
-            return Err(Error::Remote { status, message });
+            return Err(remote_error(&payload, status));
         }
         let resolved = payload
             .get("model")
@@ -645,6 +690,7 @@ impl OpenRouterBackend {
             model: resolved.to_string(),
             backend: "openrouter".to_string(),
             answers,
+            usage: usage_from_wire(&payload),
         })
     }
 }
@@ -723,6 +769,7 @@ pub fn ask(
                     model: id,
                     backend: "local".to_string(),
                     answers,
+                    usage: None,
                 })
             }
             "openrouter" => {
@@ -889,6 +936,33 @@ mod tests {
             }
             _ => panic!("expected score"),
         }
+    }
+
+    #[tokio::test]
+    async fn usage_from_wire_parses_the_jev_tutorial_response() {
+        let wire = fixture_value("jev_tutorial_response.json");
+        let usage = usage_from_wire(&wire).expect("usage");
+        assert_eq!(usage.input_tokens, 476);
+        assert_eq!(usage.output_tokens, 70);
+        assert!(
+            (usage.cost - 0.000019992).abs() < 1e-12,
+            "cost={}",
+            usage.cost
+        );
+        assert_eq!(
+            usage_to_json(&usage),
+            json!({"input_tokens": 476, "output_tokens": 70, "cost": 0.000019992})
+        );
+    }
+
+    #[tokio::test]
+    async fn usage_from_wire_tolerates_missing_and_partial_usage() {
+        assert!(usage_from_wire(&json!({"answers": {}})).is_none());
+        assert!(usage_from_wire(&json!({"usage": "nope"})).is_none());
+        let partial = usage_from_wire(&json!({"usage": {"input_tokens": 3}})).unwrap();
+        assert_eq!(partial.input_tokens, 3);
+        assert_eq!(partial.output_tokens, 0);
+        assert_eq!(partial.cost, 0.0);
     }
 
     #[tokio::test]
