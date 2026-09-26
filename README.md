@@ -1,17 +1,69 @@
 # jigor — System One decision gateway (Rust lib)
 
-System One decision models in Rust, one wire protocol across backends: `von`
-and `laya` run locally as ONNX (via `ort`); `jev` runs remote on OpenRouter's
-Decisions API.
+This is a zero-shot classifier models gateway or runner.
+
+Or, if you prefer marketing terms, "System one decision" models.
+
+This is written in Rust (blazing fast as it should be), one wire protocol across
+backends: `von` and `laya` run locally as ONNX (via `ort`); `jev` runs remotely on
+OpenRouter's Decisions API.
 
 ## Models
 
 - HF `sevenreasons/von-onnx-fp16` (`model.onnx` 759M, `tokenizer/tokenizer.json` 3.5M)
 - HF `Mattepiu/laya-onnx` (`laya.onnx` fp32 — matches the python reference
   bit-for-bit; `int8/laya_int8.onnx` via `LAYA_ONNX_FILE`)
-- OpenRouter Decisions (`typesafe/jev-1.13`, `jaredpalmer/kev-4b`) — any model
-  there speaking the same System One wire works; add it to `known_providers()`
-  and nothing else changes.
+- OpenRouter Decisions (`typesafe/jev-1.13`, `jaredpalmer/kev-4b`)
+
+## Installation
+
+You can install it via npm, pip, or cargo. Is it enough? If not -> [subscribe](https://zatsepin.dev/subscribe)
+
+```bash
+npm install --global @zatsepin/jigor
+# `pnpm approve-builds` may be needed
+pip install jigor
+cargo install jigor-cli --locked
+cargo bininstall jigor-cli
+```
+
+## Usage as cli
+
+You can use ephemeral execution with npx or uvx.
+
+```bash
+npx @zatsepin/jigor ask --model von <<'JSON'
+{
+  "state": { "error": "Disk volume /var/log at 98% capacity." },
+  "questions": {
+    "requires_intervention": {
+      "type": "noul",
+      "instructions": "Does this disk space condition require operational intervention?"
+    }
+  }
+}
+JSON
+{"answers":{"requires_intervention":{"noul":0.7822,"type":"noul"}},"backend":"local","model":"von-1.0.0"}
+```
+
+If you have OPENROUTER_API_KEY in your env, you can easily run this from your terminal and get a quick response.
+
+```bash
+npx @zatsepin/jigor ask --model jev <<'JSON'
+{
+  "state": { "error": "Disk volume /var/log at 98% capacity." },
+  "questions": {
+    "requires_intervention": {
+      "type": "noul",
+      "instructions": "Does this disk space condition require operational intervention?"
+    }
+  }
+}
+JSON
+{"answers":{"requires_intervention":{"noul":0.92,"type":"noul"}},"backend":"openrouter","model":"typesafe/jev-1.13","usage":{"cost":0.000012306,"input_tokens":293,"output_tokens":24}}
+```
+
+Feel free to use it with your agents. This README.md is enough to teach them how to use it.
 
 ## Usage as lib
 
@@ -83,38 +135,18 @@ match von.answers(&state, &questions, None) {
 }
 ```
 
-## Production: library vs installed CLI/server
-
-One workspace, two crates (`crates/jigor` + `crates/jigor-cli`), one pip
-distribution — the same code, three ways to consume it:
-
-- **Library** — `jigor = { version = "0.1.5" }` in your crate (see
-  `Usage as lib`). Only the library target is compiled: the CLI/server code
-  and its dependencies (hyper, tokio, ...) never enter consumer builds.
-- **CLI + server (cargo)** — `cargo install jigor-cli` installs the `jigor`
-  binary: `jigor serve`, `jigor ask`, `jigor models`. Builds against the
-  ONNX Runtime prebuilts (linux x64/arm64, macOS Apple Silicon, windows x64).
-  On Intel Macs — where ort ships no prebuilts — the first install compiles
-  ONNX Runtime from source once (needs git, cmake, python3 + Xcode command
-  line tools; ~15–60 min, cached afterwards); set `ORT_LIB_PATH` to reuse an
-  existing ONNX Runtime build instead, or use the npm/pip universal binary.
-- **CLI + server (npm)** — `npm install --global @zatsepin/jigor` (prebuilt binary,
-  per-platform packages: linux x64/arm64, macos universal2 — Intel + Apple
-  Silicon, windows x64).
-- **CLI + server (pip)** — `pip install jigor` (maturin wheel) installs the
-  same `jigor` console script.
+## Where models are stored?
 
 The local ONNX models (`von`, `laya`) download to `~/.cache/huggingface` on
-first use; set `OPENROUTER_API_KEY` for the remote `jev` backend. Both crates
-are published together (`make publish`) from the shared version in
-`Cargo.toml`; the wheel and the npm binary packages are published by the
-release pipelines (`.woodpecker/wheel-*.yml`, `.woodpecker/npm-*.yml`).
+first use.
+
+Set `OPENROUTER_API_KEY` for the remote `jev` backend.
 
 ## Run examples (lib crate, no bin)
 
 ```bash
-cargo run -p jigor --example decide            # same as Python main.py
-cargo run -p jigor --release --example bench   # bench
+cargo run -p jigor --example decide
+cargo run -p jigor --release --example bench
 cargo run -p jigor --example decide --offline
 ```
 
@@ -130,42 +162,17 @@ fan-out intent: payment_failure 0.539
 ```
 
 Set `JIGOR_DEVICE=cuda` to try CUDA EP
-(`ort` `cuda` feature, fallback to CPU if unavailable).
+(`ort` `cuda` feature, falls back to CPU if unavailable).
 
-## Run as executable: `jigor`
+## Usage as Gateway
 
 ```bash
-cargo build -p jigor-cli --release
-./target/release/jigor serve --host 0.0.0.0 --port 8000   # HTTP gateway
-jigor models                                              # provider x model pairs
+jigor serve --host 0.0.0.0 --port 8000   # HTTP gateway
 ```
 
 The gateway mirrors the library: noul/choice/score questions in, typed
 answers out — `von`/`laya` locally, anything else routed to the OpenRouter
 backend selected by the `model` field:
-
-```bash
-jigor ask <<'JSON'   # same wire over stdin, no HTTP layer
-{
-  "state": { "error": "Disk volume /var/log at 98% capacity." },
-  "questions": {
-    "requires_intervention": {
-      "type": "noul",
-      "instructions": "Does this disk space condition require operational intervention?"
-    }
-  }
-}
-JSON
-# {"model":"von-1.0.0","backend":"local","answers":{...}}
-
-# pin the provider, or use the "jev" alias for typesafe/jev-1.13 on OpenRouter:
-jigor ask --provider openrouter --model jev < request.json
-jigor ask --model jev < request.json          # provider inferred from the id
-```
-
-Remote responses carry a `usage` object — the request's token counts and
-billed cost in USD (`{"input_tokens":476,"output_tokens":70,"cost":0.000019992}`);
-local responses omit it.
 
 ```bash
 curl -X POST http://localhost:8000/v1/systemone \
@@ -196,7 +203,7 @@ Also: `GET /healthz` returns `{"status":"ok"}`.
 `examples/tweet.rs` is a complete Tweet Tester written _only_ against the lib
 API — it demonstrates how to build a Jev-style tool on top of
 `noul`/`choice`/`score` questions through one `answers` interface. All
-tweet-specific code lives in the example (the lib itself stays generic):
+tweet-specific code lives in the example:
 
 - the 61-question viral-score bank (question set `v1.1`, 8 families
   EMO/CNV/SHR/TIM/CRF/IDN/FMT/ANTI);
@@ -273,3 +280,13 @@ bash tests/cli/ask.sh    # jigor ask / jigor models over stdin fixtures
 # or against a running server:
 hurl --test --variable BASE_URL=http://localhost:8000 tests/hurl/*.hurl
 ```
+
+## If you like it and want to support it
+
+You can [subscribe](https://zatsepin.dev/subscribe).
+I will not spam you, but 100% will share my work with you sometimes. I am lazy, don't worry too much.
+
+Or try one of my apps:
+
+- <https://zatsepin.dev/lubo>
+- <https://zatsepin.dev/govor>
