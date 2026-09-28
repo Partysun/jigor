@@ -1,6 +1,6 @@
 {
   "name": "@zatsepin/jigor",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "System One decision gateway CLI + server — von/laya local ONNX backends, jev on OpenRouter Decisions. One wire protocol: noul/choice/score questions in, typed answers out.",
   "homepage": "https://github.com/Partysun/jigor",
   "repository": "https://github.com/Partysun/jigor",
@@ -26,10 +26,10 @@
     "postinstall": "node postinstall.js"
   },
   "optionalDependencies": {
-    "@zatsepin/jigor-darwin": "0.1.5",
-    "@zatsepin/jigor-linux-arm64-gnu": "0.1.5",
-    "@zatsepin/jigor-linux-x64-gnu": "0.1.5",
-    "@zatsepin/jigor-win32-x64-msvc": "0.1.5"
+    "@zatsepin/jigor-darwin": "0.1.6",
+    "@zatsepin/jigor-linux-arm64-gnu": "0.1.6",
+    "@zatsepin/jigor-linux-x64-gnu": "0.1.6",
+    "@zatsepin/jigor-win32-x64-msvc": "0.1.6"
   },
   "bin": {
     "jigor": "jigor"

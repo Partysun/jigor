@@ -62,6 +62,12 @@ tweet:
 tweet-test:
 	cargo test -p jigor --example tweet
 
+sales:
+	cargo run -p jigor --example sales -- "We just crossed 12,000 paying teams. The platform is an AI-native, next-gen solution. Founder pricing disappears at midnight, so sign today."
+
+sales-test:
+	cargo test -p jigor --example sales
+
 tagger:
 	cargo run -p jigor --example tagger -- --title "Hiring notes" --tags "work, ideas, personal" "Talked through the Q4 roadmap and the hiring push. Budget approved for two engineers."
 
@@ -90,6 +96,8 @@ help:
 		'  integration  hurl integration tests (spins up its own server)' \
 		'  serve        run the HTTP server (JIGOR_HOST/JIGOR_PORT overridable)' \
 		'  dev          run the decide example' \
+		'  tweet        run the tweet example | tweet-test for its unit tests' \
+		'  sales        run the sales-pitch example | sales-test for its unit tests' \
 		'  bench        run the release benchmark' \
 		'  lint         cargo clippy --all-targets -D warnings' \
 		'  fmt          cargo fmt | fmt-check for check mode' \

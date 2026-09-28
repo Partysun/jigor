@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "jigor"
-version = "0.1.5"
+version = "0.1.6"
 authors = [{ name = "Iurii Zatsepin", email = "support@zatsepin.dev" }]
 description = "System One decision gateway — local von/laya ONNX backends plus the remote jev Decisions API (OpenRouter); one wire protocol across models."
 readme = "README.pypi.md"

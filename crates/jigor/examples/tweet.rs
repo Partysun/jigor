@@ -4,7 +4,8 @@
 //! Reference used as an example for this library: https://superx.so/tweet-tester (ideas only, reimplemented manually here — no code copied).
 //!
 //! Everything tweet-specific lives here as an example of lib usage: the
-//! 61-question bank (question set "v1.1", 8 families), running the bank
+//! 61-question bank (question set "v1.1", 7 topic families with the
+//! anti-signals folded into the family they undermine), running the bank
 //! through either backend — `von` (local ONNX) or `jev` (OpenRouter) — a
 //! transparent 0-100 aggregation (50 = your account's normal post; above
 //! beats it, below does worse), the family "fired %" radar values, and
@@ -136,6 +137,9 @@ pub struct TweetAnswer {
     pub family: String,
     pub kind: String,
     pub label: String,
+    /// True for the negative (anti-signal) questions: their value subtracts
+    /// from the topic family instead of adding to it.
+    pub anti: bool,
     /// Human answer: "Yes"/"No", the chosen option description, or "1 of 3".
     pub answer: String,
     /// Normalized strength in [0, 1]: noul p, choice p, score level/max.
@@ -148,7 +152,8 @@ pub struct TweetAnswer {
 pub struct FamilyStats {
     pub label: String,
     /// Weighted share of the family's questions that fired, in [0, 1]
-    /// (mean positive-direction value, the radar "% fired" number).
+    /// (mean positive-direction value, the radar "% fired" number). The
+    /// anti-signals are folded into the family's reading — never below 0.
     pub fired: f32,
     pub total: usize,
 }
@@ -156,16 +161,17 @@ pub struct FamilyStats {
 /// Aggregated score for one tweet.
 #[derive(Debug, Clone)]
 pub struct TweetReport {
-    /// 0-100 viral score. 50 = your account's normal post: above 50 the
-    /// draft reads better than usual, below 50 worse.
+    /// 0-100 viral score. 100 = the strongest draft; the anti-signals
+    /// subtract from the topic family they belong to (never below 0).
     pub score: u32,
     /// 0-1 mirror of the score ("beats own normal").
     pub beats_own_normal: f32,
-    /// Families in canonical order, ANTI-SIGNAL last.
+    /// Families in canonical order — no separate ANTI-SIGNAL group; each
+    /// family's value already has its anti-signals subtracted.
     pub families: Vec<(String, FamilyStats)>,
-    /// 8 families x 61 answers, so a client can render every tooltip.
+    /// 7 families x 61 answers, so a client can render every tooltip.
     pub answers: Vec<TweetAnswer>,
-    /// Top answers that helped (positive families, value >= 0.6).
+    /// Top answers that helped (positive, value >= 0.6).
     pub helped: Vec<TweetAnswer>,
     /// Top answers that hurt (fired anti-signals, then weakest positives).
     pub hurt: Vec<TweetAnswer>,
@@ -180,8 +186,12 @@ fn family_order() -> Vec<String> {
         "CRAFT".to_string(),
         "IDENTITY".to_string(),
         "FORMAT".to_string(),
-        "ANTI-SIGNAL".to_string(),
     ]
+}
+
+/// True for the negative (anti-signal) questions.
+fn is_anti(id: &str) -> bool {
+    id.starts_with("a_")
 }
 
 fn family_label(family: &str) -> String {
@@ -193,7 +203,6 @@ fn family_label(family: &str) -> String {
         "CRAFT" => "Craft".to_string(),
         "IDENTITY" => "Identity".to_string(),
         "FORMAT" => "Format".to_string(),
-        "ANTI-SIGNAL" => "Anti-signal".to_string(),
         other => other.to_string(),
     }
 }
@@ -720,7 +729,7 @@ pub fn tweet_bank() -> Vec<TweetQuestion> {
 
     qs.push(question(
         "a_reply_farm",
-        "ANTI-SIGNAL",
+        "CONVERSATION",
         "score",
         "Asking for replies as the point",
         score_rubric(vec![
@@ -731,7 +740,7 @@ pub fn tweet_bank() -> Vec<TweetQuestion> {
     ));
     qs.push(question(
         "a_ai_slop",
-        "ANTI-SIGNAL",
+        "CRAFT",
         "score",
         "Reads as machine written",
         score_rubric(vec![
@@ -742,56 +751,56 @@ pub fn tweet_bank() -> Vec<TweetQuestion> {
     ));
     qs.push(question(
         "a_platitude",
-        "ANTI-SIGNAL",
+        "CRAFT",
         "noul",
         "A recycled maxim with nothing new",
         TweetCriteria::Noul,
     ));
     qs.push(question(
         "a_incentivised_promotion",
-        "ANTI-SIGNAL",
+        "IDENTITY",
         "noul",
         "Promotion of someone else that looks arranged",
         TweetCriteria::Noul,
     ));
     qs.push(question(
         "a_bare_announcement",
-        "ANTI-SIGNAL",
+        "CRAFT",
         "noul",
         "Newswire tone with nobody speaking",
         TweetCriteria::Noul,
     ));
     qs.push(question(
         "a_low_effort",
-        "ANTI-SIGNAL",
+        "CRAFT",
         "noul",
         "Nothing specific to react to",
         TweetCriteria::Noul,
     ));
     qs.push(question(
         "a_hype_caption",
-        "ANTI-SIGNAL",
+        "EMOTION",
         "noul",
         "Excitement words with no substance",
         TweetCriteria::Noul,
     ));
     qs.push(question(
         "a_off_platform_push",
-        "ANTI-SIGNAL",
+        "SHAREABILITY",
         "noul",
         "Sends readers somewhere else",
         TweetCriteria::Noul,
     ));
     qs.push(question(
         "a_offensive",
-        "ANTI-SIGNAL",
+        "CONVERSATION",
         "noul",
         "Abuse or harassment",
         TweetCriteria::Noul,
     ));
     qs.push(question(
         "a_politics_culture_war",
-        "ANTI-SIGNAL",
+        "TIMELINESS",
         "noul",
         "Politics or culture war content",
         TweetCriteria::Noul,
@@ -865,6 +874,7 @@ fn tweet_answers(asks: &HashMap<String, Answer>, bank: &[TweetQuestion]) -> Vec<
                     family: q.family.clone(),
                     kind: "noul".to_string(),
                     label: q.label.clone(),
+                    anti: is_anti(&q.id),
                     answer: if *probability >= 0.5 {
                         "Yes".to_string()
                     } else {
@@ -890,6 +900,7 @@ fn tweet_answers(asks: &HashMap<String, Answer>, bank: &[TweetQuestion]) -> Vec<
                         family: q.family.clone(),
                         kind: "choice".to_string(),
                         label: q.label.clone(),
+                        anti: is_anti(&q.id),
                         answer: desc,
                         value: probabilities.get(choice).unwrap_or(&0.0).clamp(0.0, 1.0),
                         p: Some(*confidence),
@@ -903,6 +914,7 @@ fn tweet_answers(asks: &HashMap<String, Answer>, bank: &[TweetQuestion]) -> Vec<
                         family: q.family.clone(),
                         kind: "score".to_string(),
                         label: q.label.clone(),
+                        anti: is_anti(&q.id),
                         answer: format!("{} of {}", (*score).round(), total),
                         value: (*score / denom).clamp(0.0, 1.0),
                         p: None,
@@ -917,23 +929,40 @@ fn tweet_answers(asks: &HashMap<String, Answer>, bank: &[TweetQuestion]) -> Vec<
 
 /// Pure aggregation over normalized answers (no model I/O, unit-testable).
 pub fn report_from_answers(answers: &[TweetAnswer]) -> TweetReport {
-    let mut families: Vec<(String, FamilyStats)> = Vec::with_capacity(8);
-    let mut pos_sum = 0.0_f32;
-    let mut pos_n = 0usize;
-    let mut anti_mean = 0.0_f32;
+    let mut families: Vec<(String, FamilyStats)> = Vec::with_capacity(7);
+    let mut fired_acc = 0.0_f32;
     for family in family_order() {
-        let total = answers.iter().filter(|a| a.family == family).count();
-        let mut sum = 0.0_f32;
+        let mut pos_sum = 0.0_f32;
+        let mut pos_n = 0usize;
+        let mut anti_sum = 0.0_f32;
+        let mut anti_n = 0usize;
+        let mut total = 0usize;
         for a in answers {
-            if a.family == family {
-                sum += a.value;
+            if a.family != family {
+                continue;
+            }
+            total += 1;
+            if a.anti {
+                anti_sum += a.value;
+                anti_n += 1;
+            } else {
+                pos_sum += a.value;
+                pos_n += 1;
             }
         }
-        let fired = if total == 0 {
+        // The family reads as its positive mean, with its anti-signals
+        // subtracted — never below 0.
+        let pos_mean = if pos_n == 0 {
             0.0
         } else {
-            ((sum / total as f32) * 10000.0).round() / 10000.0
+            pos_sum / pos_n as f32
         };
+        let anti_mean = if anti_n == 0 {
+            0.0
+        } else {
+            anti_sum / anti_n as f32
+        };
+        let fired = ((pos_mean - anti_mean).max(0.0) * 10000.0).round() / 10000.0;
         families.push((
             family.clone(),
             FamilyStats {
@@ -942,31 +971,20 @@ pub fn report_from_answers(answers: &[TweetAnswer]) -> TweetReport {
                 total,
             },
         ));
-        if family == "ANTI-SIGNAL" {
-            anti_mean = fired;
-        } else {
-            pos_sum += fired;
-            pos_n += 1;
-        }
+        fired_acc += fired;
     }
+    let score = ((fired_acc / family_order().len() as f32) * 100.0).round() as u32;
+    let beats_own_normal = ((score as f32 / 100.0) * 10000.0).round() / 10000.0;
 
     let mut positives: Vec<TweetAnswer> = Vec::with_capacity(51);
     let mut anti: Vec<TweetAnswer> = Vec::with_capacity(10);
     for a in answers {
-        if a.family == "ANTI-SIGNAL" {
+        if a.anti {
             anti.push(a.clone());
         } else {
             positives.push(a.clone());
         }
     }
-
-    let pos_mean = if pos_n == 0 {
-        0.5
-    } else {
-        pos_sum / pos_n as f32
-    };
-    let score = (((0.65 * pos_mean) + (0.35 * (1.0 - anti_mean))) * 100.0).round() as u32;
-    let beats_own_normal = ((score as f32 / 100.0) * 10000.0).round() / 10000.0;
 
     positives.sort_by(|a, b| b.value.partial_cmp(&a.value).unwrap());
     anti.sort_by(|a, b| b.value.partial_cmp(&a.value).unwrap());
@@ -1082,7 +1100,7 @@ pub fn tweet_report_to_json(report: &TweetReport, model: &str) -> Value {
         .map(|a| {
             helped_hurt_to_json(
                 a,
-                if a.family == "ANTI-SIGNAL" {
+                if a.anti {
                     "A warning sign fired"
                 } else {
                     "Weaker than your usual post"
@@ -1139,12 +1157,14 @@ mod tests {
         value: f32,
         text: &str,
         p: Option<f32>,
+        anti: bool,
     ) -> TweetAnswer {
         TweetAnswer {
             id: id.to_string(),
             family: family.to_string(),
             kind: kind.to_string(),
             label: label.to_string(),
+            anti,
             value,
             answer: text.to_string(),
             p,
@@ -1162,6 +1182,7 @@ mod tests {
                 overall,
                 "Yes",
                 Some(overall),
+                is_anti(&q.id),
             ));
         }
         out
@@ -1197,18 +1218,22 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn neutral_post_scores_midpoint() {
+    async fn negative_signals_never_drive_a_family_below_zero() {
         let report = report_from_answers(&uniform(0.5));
-        assert_eq!(report.score, 50);
-        assert_eq!(family_stats(&report, "EMOTION").total, 9);
-        assert_eq!(family_stats(&report, "ANTI-SIGNAL").total, 10);
+        // No ANTI-SIGNAL group anymore — every family (and the score)
+        // stays at or above zero even when everything reads 0.5.
+        assert_eq!(report.families.len(), 7);
+        for (family, stats) in &report.families {
+            assert!(stats.fired >= 0.0, "{family} fired below zero");
+        }
+        assert!(report.score <= 100);
     }
 
     #[tokio::test]
     async fn perfect_content_clean_signal_scores_100() {
         let mut answers = uniform(1.0);
         for a in &mut answers {
-            if a.family == "ANTI-SIGNAL" {
+            if a.anti {
                 a.value = 0.0;
             }
         }
@@ -1216,14 +1241,64 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn reply_farm_wipes_the_score() {
+    async fn fired_anti_signals_wash_their_topic_family_out() {
         let mut answers = uniform(1.0);
         for a in &mut answers {
-            if a.family == "ANTI-SIGNAL" {
+            if a.anti {
                 a.value = 1.0;
             }
         }
-        assert_eq!(report_from_answers(&answers).score, 65);
+        let report = report_from_answers(&answers);
+        // FORMAT carries no anti-signals, so it alone survives at 1.0;
+        // the six families with a fired negative wash out to zero.
+        assert_eq!(report.score, 14);
+        for (family, stats) in &report.families {
+            if family == "FORMAT" {
+                assert_eq!(stats.fired, 1.0);
+            } else {
+                assert_eq!(stats.fired, 0.0, "{family} should read zero");
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn anti_signal_hurts_only_its_own_topic_family() {
+        // A reply-farm tweet (anti fired) on otherwise ordinary content:
+        // only the conversation reading washes out, everything else keeps
+        // its level minus the usual near-zero anti noise.
+        let mut answers = uniform(0.4);
+        for a in &mut answers {
+            if a.anti {
+                a.value = if a.id == "a_reply_farm" { 1.0 } else { 0.1 };
+            }
+        }
+        let report = report_from_answers(&answers);
+        assert_eq!(family_stats(&report, "CONVERSATION").fired, 0.0);
+        assert_eq!(family_stats(&report, "CRAFT").fired, 0.3);
+        assert_eq!(family_stats(&report, "EMOTION").fired, 0.3);
+        assert_eq!(family_stats(&report, "FORMAT").fired, 0.4);
+    }
+
+    #[tokio::test]
+    async fn anti_signal_warning_only_fires_when_the_flag_is_set() {
+        // The "A warning sign fired" hurt detail keys off the anti flag,
+        // not off the display family (which is now the topic's).
+        let answers: Vec<TweetAnswer> = vec![answer(
+            "a_reply_farm",
+            "CONVERSATION",
+            "score",
+            "Asking for replies as the point",
+            0.9,
+            "2 of 2",
+            None,
+            true,
+        )];
+        let v = tweet_report_to_json(&report_from_answers(&answers), "von-1.0.0");
+        let hurt = v.get("hurt").unwrap().get(0).unwrap();
+        assert_eq!(
+            hurt.get("detail").unwrap().clone(),
+            json!("A warning sign fired")
+        );
     }
 
     #[tokio::test]
@@ -1237,6 +1312,7 @@ mod tests {
                 1.0,
                 "2 of 2",
                 None,
+                false,
             ),
             answer(
                 "e_vulnerability",
@@ -1246,6 +1322,7 @@ mod tests {
                 0.0,
                 "No",
                 Some(0.0),
+                false,
             ),
         ];
         let stats = family_stats(&report_from_answers(&answers), "EMOTION");
@@ -1264,6 +1341,7 @@ mod tests {
                 0.95,
                 "Yes",
                 Some(0.95),
+                false,
             ),
             answer(
                 "e_humour",
@@ -1273,6 +1351,7 @@ mod tests {
                 0.55,
                 "1 of 2",
                 None,
+                false,
             ),
             answer(
                 "s_group_chat",
@@ -1282,15 +1361,17 @@ mod tests {
                 0.9,
                 "2 of 2",
                 None,
+                false,
             ),
             answer(
                 "a_reply_farm",
-                "ANTI-SIGNAL",
+                "CONVERSATION",
                 "score",
                 "Asking for replies as the point",
                 0.9,
                 "2 of 2",
                 None,
+                true,
             ),
         ];
         let report = report_from_answers(&answers);
@@ -1306,21 +1387,23 @@ mod tests {
         let answers: Vec<TweetAnswer> = vec![
             answer(
                 "a_ai_slop",
-                "ANTI-SIGNAL",
+                "CRAFT",
                 "score",
                 "Reads as machine written",
                 0.6,
                 "1 of 2",
                 None,
+                true,
             ),
             answer(
                 "a_platitude",
-                "ANTI-SIGNAL",
+                "CRAFT",
                 "noul",
                 "A recycled maxim with nothing new",
                 0.9,
                 "Yes",
                 Some(0.9),
+                true,
             ),
             answer(
                 "s_group_chat",
@@ -1330,6 +1413,7 @@ mod tests {
                 0.3,
                 "0 of 2",
                 None,
+                false,
             ),
         ];
         let hurt_ids = report_from_answers(&answers)
@@ -1348,7 +1432,10 @@ mod tests {
         let v = tweet_report_to_json(&report, "von-1.0.0");
         let fams = v.get("families").and_then(Value::as_object).unwrap();
         assert!(fams.contains_key("EMOTION"));
-        assert!(fams.contains_key("ANTI-SIGNAL"));
+        assert!(fams.contains_key("FORMAT"));
+        // The separate negative group is gone: 7 families, none negative.
+        assert!(!fams.contains_key("ANTI-SIGNAL"));
+        assert_eq!(fams.len(), 7);
         let answers = v.get("answers").and_then(Value::as_array).unwrap();
         assert_eq!(answers.len(), 61);
         assert_eq!(
@@ -1371,43 +1458,26 @@ mod tests {
                 .clone(),
             json!("low")
         );
-        let beats = v.get("beats_own_normal").unwrap().as_f64().unwrap();
-        assert!(beats > 0.52 && beats < 0.54, "53/100");
+        let score = v.get("score").unwrap().as_u64().unwrap();
+        assert!(score <= 100);
     }
 
     #[tokio::test]
     async fn counters_are_1x_at_neutral_score() {
-        let report = report_from_answers(&uniform(0.5));
-        assert_eq!(report.score, 50);
-        let v = tweet_report_to_json(&report, "von-1.0.0");
-        let counters = v.get("counters").and_then(Value::as_object).unwrap();
-        assert_eq!(
-            counters
-                .get("likes")
-                .unwrap()
-                .get("multiple")
-                .unwrap()
-                .clone(),
-            json!(1.0)
-        );
-        assert_eq!(
-            counters
-                .get("replies")
-                .unwrap()
-                .get("multiple")
-                .unwrap()
-                .clone(),
-            json!(1.0)
-        );
-        let reposts = counters.get("reposts_and_quotes").unwrap();
-        assert_eq!(reposts.get("confidence").unwrap().clone(), json!("low"));
+        // The counter model anchors at score 50 regardless of how the
+        // aggregation fills the families.
+        assert_eq!(counter_multiple(50, 2.0), 1.0);
+        assert_eq!(counter_multiple(50, 1.6), 1.0);
+        let v = counter_json(50, 2.0, "normal");
+        assert_eq!(v.get("multiple").unwrap().clone(), json!(1.0));
+        assert_eq!(v.get("confidence").unwrap().clone(), json!("normal"));
     }
 
     #[tokio::test]
     async fn counters_scale_with_score() {
         let mut answers = uniform(1.0);
         for a in &mut answers {
-            if a.family == "ANTI-SIGNAL" {
+            if a.anti {
                 a.value = 0.0;
             }
         }

@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.1.6] - 2026-09-28
+
+The tweet example's anti-signals fold into the topic family they undermine
+(no more standalone negative group), and a new sales-pitch example joins it
+with a sentence-split, gate + max-pool hype index.
+
+### Changed
+
+- `examples/tweet.rs` — anti-signals are not their own group anymore: each
+  negative question belongs to the topic family it undermines, its fired
+  value subtracts from that family's reading (never below 0). 7 families,
+  score = mean of the family readings (100 = the strongest draft)
+- `examples/tweet.rs` — every answer carries an `anti` flag; the JSON
+  drops the standalone `ANTI-SIGNAL` entry
+
+### Added
+
+- `examples/sales.rs` — Sales Pitch Tester: splits a dictated pitch into
+  sentences, gates each one on "is this a product claim?" (`von`/`jev`),
+  and aggregates a transparent 0-100 hype index — the four hype criteria
+  max-pooled across sentences — with strong points that say what to keep
+  and weak points that suggest the fix
+- `make sales` / `make sales-test` targets (with `make help` entries)
+
 ## [0.1.5] - 2026-09-26
 
 Every OpenRouter ask now reports what it cost — the token counts and billed
