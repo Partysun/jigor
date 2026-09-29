@@ -13,6 +13,10 @@ OpenRouter's Decisions API.
 - HF `sevenreasons/von-onnx-fp16` (`model.onnx` 759M, `tokenizer/tokenizer.json` 3.5M)
 - HF `Mattepiu/laya-onnx` (`laya.onnx` fp32 — matches the python reference
   bit-for-bit; `int8/laya_int8.onnx` via `LAYA_ONNX_FILE`)
+- HF `Zatsepin/jeff-qwen3.5-0.8b-onnx` (`model.onnx` fp32 — Jeff, the
+  zero-shot decision model from [firelex/jeff](https://github.com/firelex/jeff):
+  Qwen3.5-0.8B + readout head. Static sequence length 512; left-padded
+  requests, longer prompts error out.)
 - OpenRouter Decisions (`typesafe/jev-1.13`, `jaredpalmer/kev-4b`)
 
 ## Installation
@@ -137,8 +141,12 @@ match von.answers(&state, &questions, None) {
 
 ## Where models are stored?
 
-The local ONNX models (`von`, `laya`) download to `~/.cache/huggingface` on
-first use.
+The local ONNX models (`von`, `laya`, `jeff`) download to
+`~/.cache/huggingface` on first use. `jeff` pulls ~3.2 GB (fp32 weights);
+note the answer probabilities are verified to the model's own cross-precision
+floor (~1e-2), and like the upstream jeff project the model is English-only,
+with no reasoning — it judges options, and the 512-token input cap is fixed
+by the exported graph.
 
 Set `OPENROUTER_API_KEY` for the remote `jev` backend.
 

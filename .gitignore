@@ -31,4 +31,16 @@ Thumbs.db
 # --- Python build output ---
 /dist/
 
+# --- Python bytecode / caches ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# --- ONNX export artifacts (scripts/jeff) ---
+*.onnx
+*.onnx.data
+
 # npm/README.md is committed (npm page, kept separate from the pip/crates READMEs)

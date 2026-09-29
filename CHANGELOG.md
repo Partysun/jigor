@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.1.7] - 2026-09-29
+
+`jeff` joins the local backends: the firelex/jeff zero-shot decision model
+(Qwen3.5-0.8B + readout head) exported to a single ONNX graph and verified
+against the PyTorch reference to the model's own cross-precision floor.
+
+### Added
+
+- `JeffBackend` (`crates/jigor/src/jeff.rs`) — one forward pass per batched
+  ask over the static-512 graph (`Zatsepin/jeff-qwen3.5-0.8b-onnx`); left
+  padding like the reference server, prompts over 512 tokens rejected
+- model alias `jeff` -> `jeff-qwen3.5-0.8b`; `jigor models` lists it;
+  the gateway lazy-loads jeff on the first jeff request
+- `scripts/jeff/export_onnx.py` — the ONNX export used to build the
+  artifact: blocks triton kernels, replaces `solve_triangular` with an
+  exact block-recursion inverse (a Neumann series diverges on layers whose
+  chunk matrices have spectral radius >= 1), parity checker included
+- `tests/fixtures/jeff_prompts.json` — reference prompts/tokens/answers
+  (noul/choice/score) from the upstream model for prompt and answer unit tests
+
+### Changed
+
+- README models table + storage notes (jeff ~3.2 GB fp32, English-only,
+  no reasoning, static 512-token inputs)
+
 ## [0.1.6] - 2026-09-28
 
 The tweet example's anti-signals fold into the topic family they undermine

@@ -7,6 +7,8 @@
 //!                    entailment scoring)
 //!   `src/laya.rs`  — local LayaBackend (Mattepiu/laya-onnx, marker-scoring
 //!                    decision head)
+//!   `src/jeff.rs`  — local JeffBackend (Zatsepin/jeff-qwen3.5-0.8b-onnx,
+//!                    Qwen3.5 readout-head decision model)
 //!   `OpenRouterBackend` — any OpenRouter model on the Decisions wire
 //!                    protocol (`typesafe/jev-1.13` today, more later), in
 //!                    `lib.rs`
@@ -112,11 +114,13 @@ pub(crate) fn tensor_to_array2(
     Ok(arr)
 }
 
-/// Which local backend answers a model id ("laya"/"von"). Unknown ids fall
-/// back to von (the legacy default), matching `backend_for`.
+/// Which local backend answers a model id ("laya"/"jeff"/"von"). Unknown ids
+/// fall back to von (the legacy default), matching `backend_for`.
 pub fn local_kind(model: &str) -> &'static str {
     if model.starts_with("laya") {
         "laya"
+    } else if model.starts_with("jeff") {
+        "jeff"
     } else {
         "von"
     }
@@ -124,9 +128,11 @@ pub fn local_kind(model: &str) -> &'static str {
 
 // ---- backends --------------------------------------------------------------
 
+pub mod jeff;
 pub mod laya;
 pub mod von;
 
+pub use jeff::JeffBackend;
 pub use laya::LayaBackend;
 pub use von::VonBackend;
 // ============================================================================
@@ -146,6 +152,7 @@ pub use von::VonBackend;
 //
 //   "von-1.0.0"              -> local VonBackend (this repo, ONNX)
 //   "laya-1.0.0"             -> local LayaBackend (this repo, ONNX)
+//   "jeff-qwen3.5-0.8b"      -> local JeffBackend (this repo, ONNX)
 //   "typesafe/jev-1.13"      -> OpenRouter Decisions API (Jev), via ureq
 //   "~typesafe/jev-latest"   -> same remote backend, unpinned alias
 //   "jaredpalmer/kev-4b"     -> same remote backend (Kev)
@@ -709,7 +716,7 @@ impl Backend for OpenRouterBackend {
 
 /// Which backend answers a model id. Add future backends here.
 pub fn backend_for(model: &str) -> std::result::Result<&'static str, String> {
-    if model.starts_with("von") || model.starts_with("laya") {
+    if model.starts_with("von") || model.starts_with("laya") || model.starts_with("jeff") {
         Ok("local")
     } else if model.starts_with("typesafe/")
         || model.starts_with("~typesafe/")
@@ -727,6 +734,7 @@ pub fn alias_model(model: &str) -> &str {
     match model {
         "von" => "von-1.0.0",
         "laya" => "laya-1.0.0",
+        "jeff" => "jeff-qwen3.5-0.8b",
         "jev" => "typesafe/jev-1.13",
         "jev-latest" => "~typesafe/jev-latest",
         "kev" => "jaredpalmer/kev-4b",
@@ -736,21 +744,28 @@ pub fn alias_model(model: &str) -> &str {
 
 /// Ask a local backend, picking the implementation by model id. The provider
 /// is only needed to disambiguate when the same model id exists on several
-/// providers; today `laya-*` and `von-*` are local-only, so the model id
-/// alone decides. Anything else requested against a local provider falls
-/// back to von (the legacy default).
+/// providers; today `jeff-*`, `laya-*` and `von-*` are local-only, so the
+/// model id alone decides. Anything else requested against a local provider
+/// falls back to von (the legacy default).
 fn ask_local(
     model: &str,
     state: &Value,
     questions: &[Question],
     temp: Option<f32>,
 ) -> AnyhowResult<HashMap<String, Answer>> {
-    if local_kind(model) == "laya" {
-        let mut laya = LayaBackend::new().context("load laya ONNX model")?;
-        Ok(laya.answers(state, questions, temp)?)
-    } else {
-        let mut von = VonBackend::new().context("load von ONNX model")?;
-        Ok(von.answers(state, questions, temp)?)
+    match local_kind(model) {
+        "laya" => {
+            let mut laya = LayaBackend::new().context("load laya ONNX model")?;
+            Ok(laya.answers(state, questions, temp)?)
+        }
+        "jeff" => {
+            let mut jeff = JeffBackend::new().context("load jeff ONNX model")?;
+            Ok(jeff.answers(state, questions, temp)?)
+        }
+        _ => {
+            let mut von = VonBackend::new().context("load von ONNX model")?;
+            Ok(von.answers(state, questions, temp)?)
+        }
     }
 }
 
@@ -791,6 +806,7 @@ pub fn known_providers() -> Vec<(String, String)> {
     vec![
         ("local".to_string(), "von-1.0.0".to_string()),
         ("local".to_string(), "laya-1.0.0".to_string()),
+        ("local".to_string(), "jeff-qwen3.5-0.8b".to_string()),
         ("openrouter".to_string(), "typesafe/jev-1.13".to_string()),
         ("openrouter".to_string(), "jaredpalmer/kev-4b".to_string()),
     ]
@@ -835,6 +851,8 @@ mod tests {
         assert_eq!(backend_for("von-tiny").unwrap(), "local");
         assert_eq!(backend_for("laya-1.0.0").unwrap(), "local");
         assert_eq!(backend_for("laya-int8").unwrap(), "local");
+        assert_eq!(backend_for("jeff-qwen3.5-0.8b").unwrap(), "local");
+        assert_eq!(backend_for("jeff-tiny").unwrap(), "local");
         assert_eq!(backend_for("typesafe/jev-1.13").unwrap(), "openrouter");
         assert_eq!(backend_for("~typesafe/jev-latest").unwrap(), "openrouter");
         assert_eq!(backend_for("jaredpalmer/kev-4b").unwrap(), "openrouter");
@@ -845,6 +863,7 @@ mod tests {
     async fn aliases_resolve_known_models() {
         assert_eq!(alias_model("von"), "von-1.0.0");
         assert_eq!(alias_model("laya"), "laya-1.0.0");
+        assert_eq!(alias_model("jeff"), "jeff-qwen3.5-0.8b");
         assert_eq!(alias_model("jev"), "typesafe/jev-1.13");
         assert_eq!(alias_model("jev-latest"), "~typesafe/jev-latest");
         assert_eq!(alias_model("kev"), "jaredpalmer/kev-4b");

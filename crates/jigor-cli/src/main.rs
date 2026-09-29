@@ -24,8 +24,8 @@ use hyper::{Request, Response};
 use hyper_util::rt::{TokioExecutor, TokioIo};
 use hyper_util::server::conn::auto;
 use jigor::{
-    Answer, Asks, Backend, LayaBackend, OpenRouterBackend, Question, VonBackend, alias_model,
-    answer_to_json, known_providers, local_kind, resolve_model, usage_to_json,
+    Answer, Asks, Backend, JeffBackend, LayaBackend, OpenRouterBackend, Question, VonBackend,
+    alias_model, answer_to_json, known_providers, local_kind, resolve_model, usage_to_json,
 };
 use serde_json::{Map, Value, json};
 use std::collections::HashMap;
@@ -142,7 +142,7 @@ async fn main() -> Result<()> {
 fn run_models() -> Result<()> {
     println!("provider    model id          aliases");
     for (provider, model) in known_providers() {
-        let aliases: Vec<&'static str> = ["von", "laya", "jev", "jev-latest", "kev"]
+        let aliases: Vec<&'static str> = ["von", "laya", "jeff", "jev", "jev-latest", "kev"]
             .iter()
             .filter(|a| alias_model(a) == model.as_str())
             .copied()
@@ -427,11 +427,14 @@ fn parse_questions(v: &Value) -> std::result::Result<Vec<Question>, String> {
 }
 
 /// The local ONNX backends shared by the gateway. `jigor serve` keeps von and
-/// laya resident, so local requests never reload a 1.5 GB model. One lock per
-/// backend: a long laya run must not block von asks (and vice versa).
+/// laya resident, so local requests never reload a 1.5 GB model. jeff loads
+/// lazily on its first request (a 3 GB weight file; not everyone asks jeff).
+/// One lock per backend: a long laya run must not block von asks (and vice
+/// versa).
 struct LocalBackends {
     von: Mutex<VonBackend>,
     laya: Mutex<LayaBackend>,
+    jeff: Mutex<Option<JeffBackend>>,
 }
 
 async fn run(host: &str, port: u16) -> Result<()> {
@@ -440,6 +443,7 @@ async fn run(host: &str, port: u16) -> Result<()> {
     let backends = Arc::new(LocalBackends {
         von: Mutex::new(VonBackend::new().context("load von ONNX model")?),
         laya: Mutex::new(LayaBackend::new().context("load laya ONNX model")?),
+        jeff: Mutex::new(None),
     });
     println!("jigor serve (system one gateway) listening on http://{addr}");
 
@@ -514,21 +518,36 @@ async fn handle_systemone(
         Err(e) => return error_response(StatusCode::BAD_REQUEST, &format!("invalid JSON: {e}")),
     };
 
-    let run_local = |model: &str, state: &Value, questions: &[Question], temp: Option<f32>| {
-        if local_kind(model) == "laya" {
-            let mut laya = backends
-                .laya
-                .lock()
-                .map_err(|_| jigor::Error::internal("backend lock poisoned".to_string()))?;
-            laya.answers(state, questions, temp)
-        } else {
-            let mut von = backends
-                .von
-                .lock()
-                .map_err(|_| jigor::Error::internal("backend lock poisoned".to_string()))?;
-            von.answers(state, questions, temp)
-        }
-    };
+    let run_local =
+        |model: &str, state: &Value, questions: &[Question], temp: Option<f32>| match local_kind(
+            model,
+        ) {
+            "laya" => {
+                let mut laya = backends
+                    .laya
+                    .lock()
+                    .map_err(|_| jigor::Error::internal("backend lock poisoned".to_string()))?;
+                laya.answers(state, questions, temp)
+            }
+            "jeff" => {
+                let mut slot = backends
+                    .jeff
+                    .lock()
+                    .map_err(|_| jigor::Error::internal("backend lock poisoned".to_string()))?;
+                if slot.is_none() {
+                    *slot = Some(JeffBackend::new().context("load jeff ONNX model")?);
+                }
+                let jeff = slot.as_mut().expect("jeff slot filled above");
+                jeff.answers(state, questions, temp)
+            }
+            _ => {
+                let mut von = backends
+                    .von
+                    .lock()
+                    .map_err(|_| jigor::Error::internal("backend lock poisoned".to_string()))?;
+                von.answers(state, questions, temp)
+            }
+        };
     match process_payload(&payload, None, None, run_local) {
         Ok(asks) => json_response(StatusCode::OK, &asks_to_json(asks)),
         Err(PayloadError::Invalid(msg)) => error_response(StatusCode::BAD_REQUEST, &msg),
