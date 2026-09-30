@@ -10,7 +10,7 @@ OpenRouter's Decisions API.
 
 ## Models
 
-- HF `sevenreasons/von-onnx-fp16` (`model.onnx` 759M, `tokenizer/tokenizer.json` 3.5M)
+- HF `Zatsepin/von-onnx-fp16` (`model.onnx` 794M, `tokenizer/tokenizer.json` 3.5M)
 - HF `Mattepiu/laya-onnx` (`laya.onnx` fp32 — matches the python reference
   bit-for-bit; `int8/laya_int8.onnx` via `LAYA_ONNX_FILE`)
 - HF `Zatsepin/jeff-qwen3.5-0.8b-onnx` (`model.onnx` fp32 — Jeff, the

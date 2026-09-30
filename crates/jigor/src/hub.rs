@@ -125,12 +125,12 @@ mod tests {
     #[tokio::test]
     async fn cache_paths_are_v2_layout() {
         assert!(
-            repo_dir("sevenreasons/von-onnx-fp16")
+            repo_dir("Zatsepin/von-onnx-fp16")
                 .to_string_lossy()
-                .ends_with(".cache/huggingface/hub/models--sevenreasons--von-onnx-fp16")
+                .ends_with(".cache/huggingface/hub/models--Zatsepin--von-onnx-fp16")
         );
         assert!(
-            repo_dir("sevenreasons/von-onnx-fp16")
+            repo_dir("Zatsepin/von-onnx-fp16")
                 .join("snapshots")
                 .join("abc")
                 .join("tokenizer/tokenizer.json")

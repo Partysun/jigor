@@ -3,7 +3,7 @@
 //!
 //! Backends implement the shared `Backend` trait, one file per model:
 //!
-//!   `src/von.rs`   — local VonBackend (sevenreasons/von-onnx-fp16, NLI
+//!   `src/von.rs`   — local VonBackend (Zatsepin/von-onnx-fp16, NLI
 //!                    entailment scoring)
 //!   `src/laya.rs`  — local LayaBackend (Mattepiu/laya-onnx, marker-scoring
 //!                    decision head)

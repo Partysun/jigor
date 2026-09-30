@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.1.8] - 2026-09-30
+
+The von ONNX model moves to a self-owned HF repo.
+
+### Changed
+
+- `VonBackend` now loads `Zatsepin/von-onnx-fp16` — an fp16 ONNX export of
+  the NLI-era `wfzyx/von` checkpoint (revision `999e01cfff98`, the exact
+  source of the old artifact: same 174-tensor NLI head, same
+  `calibration.json` with `temperature: 1.0367`)
+- `Error::External` displays the full anyhow chain (`{0:#}`) — a failed
+  model download now reports the underlying HTTP status/url instead of only
+  the last `.context(...)` tag
+- `scripts/von/export_onnx.py` — the export used to build the artifact:
+  downloads the pinned `wfzyx/von` revision, exports the fp16 graph
+  (torch dynamo exporter, opset 18, fp32 logits out via a trailing `Cast`),
+  ships a parity checker (ORT vs PyTorch on grouped 2/4-option asks)
+
 ## [0.1.7] - 2026-09-29
 
 `jeff` joins the local backends: the firelex/jeff zero-shot decision model
@@ -171,4 +189,3 @@ across every backend.
 - `JIGOR_DEVICE=cuda` enables CUDA (fallback to CPU); `OPENROUTER_API_KEY`
   enables the remote backend.
 - Local models are cached under `~/.cache/huggingface`.
-

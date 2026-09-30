@@ -1,7 +1,11 @@
 //! Von ONNX backend — the in-repo System One NLI model.
 //!
 //! Mirrors the Python `von` using `ort` + `tokenizers`; the model is
-//! `sevenreasons/von-onnx-fp16` (FP16, logits [batch,3], entail=0).
+//! `Zatsepin/von-onnx-fp16` (FP16, logits [batch,3], entail=0). It is an
+//! ONNX export of the NLI-era `wfzyx/von` checkpoint (ModernBERT-large +
+//! sequence-classification head, revision `999e01cfff98`) — see
+//! `scripts/von/export_onnx.py`, artifact on HF as
+//! `Zatsepin/von-onnx-fp16`.
 
 use crate::hub::hub_file;
 use anyhow::{Context, Result as AnyhowResult};
@@ -41,7 +45,7 @@ pub struct VonBackend {
 impl VonBackend {
     /// Load model from HF Hub (cached at ~/.cache/huggingface/hub like Python)
     pub fn new() -> Result<Self> {
-        Self::new_with_model("sevenreasons/von-onnx-fp16")
+        Self::new_with_model("Zatsepin/von-onnx-fp16")
     }
 
     pub fn new_with_model(model_id: &str) -> Result<Self> {

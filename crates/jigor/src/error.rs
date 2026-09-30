@@ -17,8 +17,10 @@ pub enum Error {
     /// A failure boxed by `anyhow` (ort, tokenizers, hf-hub, ureq, io):
     /// the automatic conversion target for every `?` that crosses into a
     /// foreign crate. Model load failures land here too — the underlying
-    /// message says which part failed.
-    #[error("{0}")]
+    /// message says which part failed. `{0:#}` prints the full anyhow
+    /// chain (context → source), so a failed hub download surfaces the
+    /// HTTP status and url instead of only the last `.context(...)` tag.
+    #[error("{0:#}")]
     External(#[from] AnyhowError),
 
     /// No backend answers the model id (see `jigor models`).
